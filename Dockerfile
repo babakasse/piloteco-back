@@ -18,19 +18,22 @@ WORKDIR /app
 # persistent / runtime deps
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
-		acl \
-		file \
-		gettext \
-		git \
-	;
+    acl \
+    file \
+    gettext \
+    git \
+    libpq \
+    postgresql-dev \
+;
 
 RUN set -eux; \
-	install-php-extensions \
-		apcu \
-		intl \
-		opcache \
-		zip \
-	;
+    install-php-extensions \
+        apcu \
+        intl \
+        opcache \
+        zip \
+        pdo_pgsql \
+    ;
 
 ###> recipes ###
 ###< recipes ###
