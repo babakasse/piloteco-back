@@ -12,13 +12,14 @@ class LoginControllerTest extends ApiTestCase
 
         $response = $client->request('POST', '/api/login', [
             'json' => [
-                'email' => 'user@example.com',
-                'password' => 'string',
+                'email' => 'admin@example.com',
+                'password' => 'password123',
             ],
         ]);
 
+        $jsonResponse = $response->toArray();
         $this->assertResponseIsSuccessful();
-        $this->assertJsonContains(['token' => true]);
+        $this->assertArrayHasKey('token', $jsonResponse);
     }
 
     public function testInvalidCredentials(): void
@@ -33,6 +34,6 @@ class LoginControllerTest extends ApiTestCase
         ]);
 
         $this->assertResponseStatusCodeSame(401);
-        $this->assertJsonContains(['error' => 'Invalid credentials']);
+        $this->assertJsonContains(['message' => 'Invalid credentials.']);
     }
 }
