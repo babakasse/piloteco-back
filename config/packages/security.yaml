@@ -32,6 +32,7 @@ security:
         - { path: ^/$, roles: IS_AUTHENTICATED_ANONYMOUSLY } # Allows accessing the Swagger UI
         - { path: ^/docs, roles: IS_AUTHENTICATED_ANONYMOUSLY } # Allows accessing the Swagger UI docs
         - { path: ^/api/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:

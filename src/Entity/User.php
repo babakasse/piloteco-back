@@ -50,6 +50,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $email = null;
 
     #[ORM\Column]
+    #[Assert\Length(min: 6)]
     private ?string $password = null;
 
     #[Assert\NotBlank(groups: ['user:create'])]
