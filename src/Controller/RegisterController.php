@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class RegisterController extends AbstractController
 {
-    #[Route('/api/register', name: 'api_register', methods: ['POST'])]
+    #[Route('/register', name: 'api_register', methods: ['POST'])]
     public function __invoke(
         Request $request,
         EntityManagerInterface $entityManager,
@@ -32,7 +32,7 @@ class RegisterController extends AbstractController
         $user->setEmail($data['email']);
         $user->setFirstName($data['firstName']);
         $user->setLastName($data['lastName']);
-        $user->setPassword($passwordHasher->hashPassword($user, $data['password']));
+        $user->setPassword($passwordHasher->hashPassword($user, $data['plainPassword']));
 
         $entityManager->persist($user);
         $entityManager->flush();
