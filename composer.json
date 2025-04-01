@@ -1,8 +1,8 @@
 {
-    "name": "symfony/skeleton",
+    "name": "babakasse/piloteco-back",
     "type": "project",
     "license": "MIT",
-    "description": "A minimal Symfony project recommended to create bare bones applications",
+    "description": "L'outil SaaS de gestion environnementale pour PME avec une Marketplace",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
