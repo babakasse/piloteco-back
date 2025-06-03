@@ -24,6 +24,7 @@ RUN apk add --no-cache \
     git \
     libpq \
     postgresql-dev \
+    make \
 ;
 
 RUN set -eux; \
