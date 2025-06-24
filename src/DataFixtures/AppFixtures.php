@@ -19,15 +19,22 @@ class AppFixtures extends Fixture
 
     public function load(ObjectManager $manager): void
     {
+        $sectors = ['Industry', 'Automotive', 'Shipping', 'Technology', 'Healthcare', 'Finance', 'Retail', 'Education', 'Construction', 'Hospitality'];
+
         // Creating companies
         $companies = [];
-        for ($i = 1; $i <= 3; $i++) {
+        for ($i = 1; $i <= 10; $i++) {
             $company = new Company();
             $company->setName("Company $i")
-                ->setAddress("123 Street, City $i");
+                ->setAddress("123 Street, City $i")
+                ->setSector($sectors[($i - 1) % count($sectors)]); // Assure qu'on a toujours un secteur valide
+
             $manager->persist($company);
             $companies[] = $company;
         }
+
+        // Flush companies first to ensure they have IDs
+        $manager->flush();
 
         // Creating users
         for ($i = 1; $i <= 10; $i++) {
@@ -36,7 +43,7 @@ class AppFixtures extends Fixture
                 ->setFirstName("FirstName$i")
                 ->setLastName("LastName$i")
                 ->setRoles(["ROLE_USER"])
-                ->setCompany($companies[array_rand($companies)]);
+                ->setCompany($companies[($i - 1) % count($companies)]); // Distribution équitable
 
             // Hash password
             $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
@@ -46,19 +53,18 @@ class AppFixtures extends Fixture
         }
 
         // Add admin user
-        $user = new User();
-        $user->setEmail('admin@example.com');
-        $user->setRoles(['ROLE_ADMIN']);
-        $user->setFirstName("ADMIN FIRSTNAME");
-        $user->setLastName("ADMIN LASTNAME");
-        $user->setRoles(["ROLE_USER"]);
-        $user->setCompany($companies[array_rand($companies)]);
+        $adminUser = new User();
+        $adminUser->setEmail('admin@example.com')
+            ->setFirstName("Admin")
+            ->setLastName("User")
+            ->setRoles(["ROLE_ADMIN"]) // Gardez ROLE_ADMIN, pas ROLE_USER
+            ->setCompany($companies[0]); // Première company
 
         // Hash password
-        $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
-        $user->setPassword($hashedPassword);
-        $manager->persist($user);
+        $hashedPassword = $this->passwordHasher->hashPassword($adminUser, 'password123');
+        $adminUser->setPassword($hashedPassword);
 
+        $manager->persist($adminUser);
 
         $manager->flush();
     }

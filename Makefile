@@ -35,11 +35,6 @@ logs: ## Show live logs
 sh: ## Connect to the FrankenPHP container
 	@$(PHP_CONT) sh
 
-test: ## Start tests with phpunit, pass the parameter "c=" to add options to phpunit, example: make test c="--group e2e --stop-on-failure"
-	@$(eval c ?=)
-	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/phpunit $(c)
-
-
 ## —— Composer 🧙 ——————————————————————————————————————————————————————————————
 composer: ## Run composer, pass the parameter "c=" to run a given command, example: make composer c='req symfony/orm-pack'
 	@$(eval c ?=)
@@ -71,10 +66,36 @@ init-db: ## Drop, create, migrate DB and load fixtures
 	@$(SYMFONY) doctrine:fixtures:load --no-interaction
 
 ## —— Tests 🧪 ——————————————————————————————————————————————————————————————
+init-test-db: ## Initialize test database
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/console doctrine:database:drop --force --if-exists
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/console doctrine:database:create --if-not-exists
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/console doctrine:migrations:migrate --no-interaction
+
+init-test-fixtures: ## Load fixtures in test database
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/console doctrine:fixtures:load --no-interaction
+
+init-test: init-test-db init-test-fixtures ## Initialize complete test environment (DB + fixtures)
+
+test-reset: init-test ## Reset test environment and run tests
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/phpunit
+
 test: ## Run tests with PHPUnit
 	@$(eval c ?=)
 	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/phpunit $(c)
 
 test-coverage: ## Run PHPUnit tests with coverage (HTML)
 	@$(DOCKER_COMP) exec -e XDEBUG_MODE=coverage -e APP_ENV=test php \
-		vendor/bin/phpunit --coverage-html var/coverage
+	   vendor/bin/phpunit --coverage-html var/coverage
+
+test-coverage-text: ## Run PHPUnit tests with coverage (console output)
+	@$(DOCKER_COMP) exec -e XDEBUG_MODE=coverage -e APP_ENV=test php \
+	   vendor/bin/phpunit --coverage-text
+
+test-unit: ## Run only unit tests
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/phpunit --testsuite=unit
+
+test-integration: ## Run only integration tests
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/phpunit --testsuite=integration
+
+test-functional: ## Run only functional tests
+	@$(DOCKER_COMP) exec -e APP_ENV=test php bin/phpunit --testsuite=functional

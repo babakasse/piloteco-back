@@ -1,44 +1,71 @@
 <?php
 
-namespace App\Tests\Controller;
+namespace App\DataFixtures;
 
-use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
+use App\Entity\Company;
+use App\Entity\User;
+use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Persistence\ObjectManager;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-class LoginControllerTest extends ApiTestCase
+class AppFixtures extends Fixture
 {
-    public function testSuccessfulLogin(): void
+    private UserPasswordHasherInterface $passwordHasher;
+
+    public function __construct(UserPasswordHasherInterface $passwordHasher)
     {
-        self::ensureKernelShutdown();
-        $client = static::createClient();
-
-        $response = $client->request('POST', '/api/login', [
-            'json' => [
-                'email' => 'admin@example.com',
-                'password' => 'password123',
-            ],
-        ]);
-
-        $jsonResponse = $response->toArray();
-
-        $this->assertResponseIsSuccessful();
-        $this->assertArrayHasKey('token', $jsonResponse, "The response must contain a token.");
-        $this->assertIsString($jsonResponse['token'], "The token must be a string.");
-        $this->assertMatchesRegularExpression('/^[\w-]+\.[\w-]+\.[\w-]+$/', $jsonResponse['token'], "The token does not match the JWT format.");
+        $this->passwordHasher = $passwordHasher;
     }
 
-    public function testInvalidCredentials(): void
+    public function load(ObjectManager $manager): void
     {
-        self::ensureKernelShutdown();
-        $client = static::createClient();
+        $sectors = ['Industry', 'Automotive', 'Shipping', 'Technology', 'Healthcare', 'Finance', 'Retail', 'Education', 'Construction', 'Hospitality'];
 
-        $response = $client->request('POST', '/api/login', [
-            'json' => [
-                'email' => 'user@example.com',
-                'password' => 'wrongpassword',
-            ],
-        ]);
+        // Creating companies
+        $companies = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $company = new Company();
+            $company->setName("Company $i")
+                ->setAddress("123 Street, City $i")
+                ->setSector($sectors[($i - 1) % count($sectors)]); // Assure qu'on a toujours un secteur valide
 
-        $this->assertResponseStatusCodeSame(401, "The response should be 401 Unauthorized for invalid credentials.");
-        $this->assertJsonContains(['message' => 'Invalid credentials.']);
+            $manager->persist($company);
+            $companies[] = $company;
+        }
+
+        // Flush companies first to ensure they have IDs
+        $manager->flush();
+
+        // Creating users
+        for ($i = 1; $i <= 10; $i++) {
+            $user = new User();
+            $user->setEmail("user$i@example.com")
+                ->setFirstName("FirstName$i")
+                ->setLastName("LastName$i")
+                ->setRoles(["ROLE_USER"])
+                ->setCompany($companies[($i - 1) % count($companies)]); // Distribution équitable
+
+            // Hash password
+            $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
+            $user->setPassword($hashedPassword);
+
+            $manager->persist($user);
+        }
+
+        // Add admin user
+        $adminUser = new User();
+        $adminUser->setEmail('admin@example.com')
+            ->setFirstName("Admin")
+            ->setLastName("User")
+            ->setRoles(["ROLE_ADMIN"]) // Gardez ROLE_ADMIN, pas ROLE_USER
+            ->setCompany($companies[0]); // Première company
+
+        // Hash password
+        $hashedPassword = $this->passwordHasher->hashPassword($adminUser, 'password123');
+        $adminUser->setPassword($hashedPassword);
+
+        $manager->persist($adminUser);
+
+        $manager->flush();
     }
 }

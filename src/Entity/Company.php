@@ -36,6 +36,11 @@ class Company
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $address = null;
 
+    #[Assert\Length(max: 255)]
+    #[Groups(['company:read', 'company:create'])]
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $sector = null;
+
     #[Groups(['company:read'])]
     #[ORM\OneToMany(targetEntity: User::class, mappedBy: 'company', cascade: ['remove'])]
     private Collection $users;
@@ -69,6 +74,17 @@ class Company
     public function setAddress(string $address): self
     {
         $this->address = $address;
+        return $this;
+    }
+
+    public function getSector(): ?string
+    {
+        return $this->sector;
+    }
+
+    public function setSector(string $sector): self
+    {
+        $this->sector = $sector;
         return $this;
     }
 
