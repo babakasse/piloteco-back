@@ -5,6 +5,6 @@ lexik_jwt_authentication:
     token_ttl: 3600
 
 #    api_platform:
-#        check_path: /api/login
+#        check_path: /login
 #        username_path: email
 #        password_path: password

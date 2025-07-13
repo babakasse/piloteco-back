@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use App\Service\AuthenticationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
@@ -10,9 +10,13 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 class LoginController extends AbstractController
 {
-    //// *************** USE CODE BELOW TO OVERNIGHT DEFAULT JWT LOGIN *********** //////
-    #[Route('/api/login', name: 'api_login', methods: ['POST'])]
-    public function login(JWTTokenManagerInterface $jwtManager): JsonResponse
+    public function __construct(
+        private readonly AuthenticationService $authenticationService
+    ) {
+    }
+
+    #[Route('/login', name: 'api_login', methods: ['POST'])]
+    public function login(): JsonResponse
     {
         $user = $this->getUser();
 
@@ -20,14 +24,7 @@ class LoginController extends AbstractController
             return $this->json(['error' => 'Invalid credentials'], 401);
         }
 
-        return $this->json([
-            'token' => $jwtManager->create($user),
-            'user' => [
-                'email' => $user->getUserIdentifier(), // ou getEmail() selon ton User
-                'roles' => $user->getRoles()
-            ]
-        ]);
-
+        $authResponse = $this->authenticationService->createAuthResponse($user);
+        return $this->json($authResponse->toArray());
     }
-
 }

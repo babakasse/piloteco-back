@@ -24,7 +24,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ApiResource(
     operations: [
-        new GetCollection(),
+        new GetCollection(
+            paginationEnabled: true,
+            paginationItemsPerPage: 10,
+            paginationMaximumItemsPerPage: 50,
+            paginationClientItemsPerPage: true
+        ),
         new Post(
             uriTemplate: '/register',
             controller: RegisterController::class,
