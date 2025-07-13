@@ -10,7 +10,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class MeController extends AbstractController
 {
-    #[Route('/me', name: 'api_me', methods: ['GET'])]
+    #[Route('/api/me', name: 'api_me', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function __invoke(Security $security): JsonResponse
     {
@@ -26,6 +26,12 @@ class MeController extends AbstractController
             'firstName' => $user->getFirstName(),
             'lastName' => $user->getLastName(),
             'roles' => $user->getRoles(),
+            'company' => [
+                'id' => $user->getCompany()->getId(),
+                'name' => $user->getCompany()->getName(),
+                'address' => $user->getCompany()->getAddress(),
+                'sector' => $user->getCompany()->getSector(),
+            ],
         ]);
     }
 }
