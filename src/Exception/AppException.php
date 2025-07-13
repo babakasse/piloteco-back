@@ -15,7 +15,7 @@ class AppException extends \Exception
      * @param array $errors Additional error details
      * @param \Throwable|null $previous Previous exception
      */
-    public function __construct(string $message = '', int $code = 0, array $errors = [], \Throwable $previous = null)
+    public function __construct(string $message = '', int $code = 0, array $errors = [], ?\Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
         $this->errors = $errors;
