@@ -26,3 +26,7 @@ services:
     App\State\UserPasswordHasher:
         bind:
             $processor: '@api_platform.doctrine.orm.state.persist_processor'
+
+    # Make EmissionCalculationService public for tests
+    App\Service\EmissionCalculationService:
+        public: true
