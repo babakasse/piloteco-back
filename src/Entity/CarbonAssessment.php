@@ -19,22 +19,22 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new GetCollection(
-            uriTemplate: '/assessment'
+            uriTemplate: '/api/assessment'
         ),
         new Post(
-            uriTemplate: '/assessment'
+            uriTemplate: '/api/assessment'
         ),
         new Get(
-            uriTemplate: '/assessment/{id}'
+            uriTemplate: '/api/assessment/{id}'
         ),
         new Put(
-            uriTemplate: '/assessment/{id}'
+            uriTemplate: '/api/assessment/{id}'
         ),
         new Patch(
-            uriTemplate: '/assessment/{id}'
+            uriTemplate: '/api/assessment/{id}'
         ),
         new Delete(
-            uriTemplate: '/assessment/{id}'
+            uriTemplate: '/api/assessment/{id}'
         ),
     ],
     normalizationContext: ['groups' => ['carbon_assessment:read']],
