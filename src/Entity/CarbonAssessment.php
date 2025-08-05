@@ -280,7 +280,7 @@ class CarbonAssessment
     }
 
     /**
-     * Calcule les émissions totales et par scope en tenant compte des unités (kgCO2e -> tCO2e).
+     * Calcule les émissions totales et par scope en kgCO₂e uniquement.
      * Arrondit à 2 chiffres après la virgule.
      */
     public function calculateEmissions(): void
@@ -291,10 +291,7 @@ class CarbonAssessment
 
         foreach ($this->emissions as $emission) {
             $amount = $emission->getAmount() ?? 0;
-            $unit = $emission->getUnit();
-            if ($unit === 'kgCO2e') {
-                $amount = $amount / 1000;
-            }
+            // On suppose que toutes les émissions sont en kgCO₂e
             switch ($emission->getScope()) {
                 case 1:
                     $scope1 += $amount;
