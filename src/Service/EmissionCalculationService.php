@@ -20,19 +20,11 @@ class EmissionCalculationService
 
     /**
      * Calculate and update emissions for an assessment.
+     * @deprecated Use updateCalculations() instead, which is automatically called by entity lifecycle events
      */
     public function calculateEmissionsForAssessment(CarbonAssessment $assessment): void
     {
-        $scope1 = $this->emissionRepository->calculateByScope($assessment->getId(), 1);
-        $scope2 = $this->emissionRepository->calculateByScope($assessment->getId(), 2);
-        $scope3 = $this->emissionRepository->calculateByScope($assessment->getId(), 3);
-        $total = $scope1 + $scope2 + $scope3;
-
-        $assessment->setScope1Emissions($scope1);
-        $assessment->setScope2Emissions($scope2);
-        $assessment->setScope3Emissions($scope3);
-        $assessment->setTotalEmissions($total);
-
+        $assessment->updateCalculations();
         $this->entityManager->persist($assessment);
         $this->entityManager->flush();
     }
@@ -42,12 +34,19 @@ class EmissionCalculationService
      * 
      * @param float $activityData The activity data (e.g., kWh of electricity, liters of fuel)
      * @param float $emissionFactor The emission factor (e.g., kgCO2e per kWh)
-     * @return float The calculated emissions in tCO2e
+     * @param string $unit The unit for the result ('tCO2e' or 'kgCO2e')
+     * @return float The calculated emissions in the specified unit, rounded to 2 decimal places
      */
-    public function calculateEmissions(float $activityData, float $emissionFactor): float
+    public function calculateEmissions(float $activityData, float $emissionFactor, string $unit = 'tCO2e'): float
     {
-        // Convert to tCO2e if the emission factor is in kgCO2e
-        return $activityData * $emissionFactor / 1000;
+        $result = $activityData * $emissionFactor;
+
+        // Convert to tCO2e if the result should be in tCO2e but factor is in kgCO2e
+        if ($unit === 'tCO2e') {
+            $result = $result / 1000;
+        }
+
+        return round($result, 2);
     }
 
     /**
@@ -73,8 +72,8 @@ class EmissionCalculationService
         string $unit = 'tCO2e',
         ?string $description = null
     ): Emission {
-        $amount = $this->calculateEmissions($activityData, $emissionFactor);
-        
+        $amount = $this->calculateEmissions($activityData, $emissionFactor, $unit);
+
         $emission = new Emission();
         $emission->setAssessment($assessment);
         $emission->setSource($source);
@@ -90,9 +89,8 @@ class EmissionCalculationService
         $this->entityManager->persist($emission);
         $this->entityManager->flush();
         
-        // Update the assessment totals
-        $this->calculateEmissionsForAssessment($assessment);
-        
+        // Les calculs sont automatiquement mis à jour via les événements PrePersist/PreUpdate
+
         return $emission;
     }
 
@@ -100,7 +98,7 @@ class EmissionCalculationService
      * Get a breakdown of emissions by category for an assessment.
      * 
      * @param CarbonAssessment $assessment The assessment to analyze
-     * @return array An array of categories with their total emissions
+     * @return array An array of categories with their total emissions (in tCO2e, rounded to 2 decimals)
      */
     public function getEmissionsByCategory(CarbonAssessment $assessment): array
     {
@@ -109,8 +107,14 @@ class EmissionCalculationService
         
         foreach ($emissions as $emission) {
             $category = $emission->getCategory();
-            $amount = $emission->getAmount();
-            
+            $amount = $emission->getAmount() ?? 0;
+            $unit = $emission->getUnit();
+
+            // Convert to tCO2e if necessary
+            if ($unit === 'kgCO2e') {
+                $amount = $amount / 1000;
+            }
+
             if (!isset($categories[$category])) {
                 $categories[$category] = 0;
             }
@@ -118,6 +122,11 @@ class EmissionCalculationService
             $categories[$category] += $amount;
         }
         
+        // Round all values to 2 decimal places
+        foreach ($categories as $category => $amount) {
+            $categories[$category] = round($amount, 2);
+        }
+
         return $categories;
     }
 
@@ -125,14 +134,14 @@ class EmissionCalculationService
      * Get a breakdown of emissions by scope for an assessment.
      * 
      * @param CarbonAssessment $assessment The assessment to analyze
-     * @return array An array of scopes with their total emissions
+     * @return array An array of scopes with their total emissions (in tCO2e, rounded to 2 decimals)
      */
     public function getEmissionsByScope(CarbonAssessment $assessment): array
     {
         return [
-            1 => $assessment->getScope1Emissions() ?? 0,
-            2 => $assessment->getScope2Emissions() ?? 0,
-            3 => $assessment->getScope3Emissions() ?? 0
+            1 => round($assessment->getScope1Emissions() ?? 0, 2),
+            2 => round($assessment->getScope2Emissions() ?? 0, 2),
+            3 => round($assessment->getScope3Emissions() ?? 0, 2)
         ];
     }
 }

@@ -103,7 +103,7 @@ class EmissionRepository extends ServiceEntityRepository
             ->setParameter('scope', $scope)
             ->getQuery()
             ->getSingleScalarResult();
-        
+
         return (float) ($result ?? 0);
     }
 }

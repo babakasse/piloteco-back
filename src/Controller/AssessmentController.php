@@ -3,7 +3,6 @@
 namespace App\Controller;
 
 use App\Entity\CarbonAssessment;
-use App\Entity\Company;
 use App\Repository\CarbonAssessmentRepository;
 use App\Repository\CompanyRepository;
 use App\Service\EmissionCalculationService;
@@ -12,13 +11,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
-#[Route('/assessment')]
-#[IsGranted('IS_AUTHENTICATED_FULLY')]
+
 class AssessmentController extends AbstractController
 {
     public function __construct(
@@ -31,7 +28,7 @@ class AssessmentController extends AbstractController
     ) {
     }
 
-    #[Route('', name: 'get_assessments', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function getAssessments(Request $request): JsonResponse
     {
         $user = $this->getUser();
@@ -42,7 +39,7 @@ class AssessmentController extends AbstractController
         }
 
         $year = $request->query->get('year');
-        
+
         if ($year) {
             $assessments = $this->assessmentRepository->findByCompanyAndYear($company->getId(), (int) $year);
         } else {
@@ -57,7 +54,7 @@ class AssessmentController extends AbstractController
         );
     }
 
-    #[Route('/{id}', name: 'get_assessment', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function getAssessment(int $id): JsonResponse
     {
         $user = $this->getUser();
@@ -86,7 +83,7 @@ class AssessmentController extends AbstractController
         );
     }
 
-    #[Route('', name: 'create_assessment', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function createAssessment(Request $request): JsonResponse
     {
         $user = $this->getUser();
@@ -102,11 +99,11 @@ class AssessmentController extends AbstractController
         $assessment->setName($data['name'] ?? 'Carbon Assessment');
         $assessment->setDescription($data['description'] ?? null);
         $assessment->setCompany($company);
-        
+
         if (isset($data['assessmentDate'])) {
             $assessment->setAssessmentDate(new \DateTime($data['assessmentDate']));
         }
-        
+
         $assessment->setStatus($data['status'] ?? 'draft');
 
         // Validate the assessment
@@ -147,7 +144,7 @@ class AssessmentController extends AbstractController
         );
     }
 
-    #[Route('/{id}/emissions', name: 'get_assessment_emissions', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function getAssessmentEmissions(int $id): JsonResponse
     {
         $user = $this->getUser();
@@ -176,7 +173,7 @@ class AssessmentController extends AbstractController
         );
     }
 
-    #[Route('/{id}/summary', name: 'get_assessment_summary', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function getAssessmentSummary(int $id): JsonResponse
     {
         $user = $this->getUser();
@@ -197,20 +194,29 @@ class AssessmentController extends AbstractController
             return $this->json(['error' => 'Access denied to this assessment'], Response::HTTP_FORBIDDEN);
         }
 
+        // Récupérer le résumé avec les calculs
         $summary = [
-            'id' => $assessment->getId(),
-            'name' => $assessment->getName(),
-            'year' => $assessment->getYear(),
-            'totalEmissions' => $assessment->getTotalEmissions(),
+            'assessment' => [
+                'id' => $assessment->getId(),
+                'name' => $assessment->getName(),
+                'description' => $assessment->getDescription(),
+                'year' => $assessment->getYear(),
+                'status' => $assessment->getStatus(),
+                'assessmentDate' => $assessment->getAssessmentDate()?->format('Y-m-d'),
+                'createdAt' => $assessment->getCreatedAt()?->format('Y-m-d H:i:s'),
+            ],
+            'totals' => [
+                'totalEmissions' => round($assessment->getTotalEmissions() ?? 0, 2),
+                'scope1Emissions' => round($assessment->getScope1Emissions() ?? 0, 2),
+                'scope2Emissions' => round($assessment->getScope2Emissions() ?? 0, 2),
+                'scope3Emissions' => round($assessment->getScope3Emissions() ?? 0, 2),
+            ],
             'byScope' => $this->calculationService->getEmissionsByScope($assessment),
             'byCategory' => $this->calculationService->getEmissionsByCategory($assessment),
-            'status' => $assessment->getStatus(),
-            'company' => [
-                'id' => $company->getId(),
-                'name' => $company->getName()
-            ]
+            'emissionsCount' => $assessment->getEmissions()->count(),
         ];
 
         return $this->json($summary, Response::HTTP_OK);
     }
 }
+

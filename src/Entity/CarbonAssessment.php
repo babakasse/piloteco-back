@@ -6,9 +6,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
-use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Delete;
+use App\Controller\AssessmentController;
 use App\Repository\CarbonAssessmentRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -19,23 +17,30 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new GetCollection(
-            uriTemplate: '/api/assessment'
-        ),
-        new Post(
-            uriTemplate: '/api/assessment'
+            uriTemplate: '/assessment',
+            controller: AssessmentController::class . '::getAssessments',
+            name: 'app_get_assessments'
         ),
         new Get(
-            uriTemplate: '/api/assessment/{id}'
+            uriTemplate: '/assessment/{id}',
+            controller: AssessmentController::class . '::getAssessment',
+            name: 'app_get_assessment'
         ),
-        new Put(
-            uriTemplate: '/api/assessment/{id}'
+        new Post(
+            uriTemplate: '/assessment',
+            controller: AssessmentController::class . '::createAssessment',
+            name: 'app_create_assessment'
         ),
-        new Patch(
-            uriTemplate: '/api/assessment/{id}'
+        new Get(
+            uriTemplate: '/assessment/{id}/emissions',
+            controller: AssessmentController::class . '::getAssessmentEmissions',
+            name: 'app_get_assessment_emissions'
         ),
-        new Delete(
-            uriTemplate: '/api/assessment/{id}'
-        ),
+        new Get(
+            uriTemplate: '/assessment/{id}/summary',
+            controller: AssessmentController::class . '::getAssessmentSummary',
+            name: 'app_get_assessment_summary'
+        )
     ],
     normalizationContext: ['groups' => ['carbon_assessment:read']],
     denormalizationContext: ['groups' => ['carbon_assessment:create', 'carbon_assessment:update']],
@@ -160,6 +165,7 @@ class CarbonAssessment
 
     public function getTotalEmissions(): ?float
     {
+        $this->updateCalculations();
         return $this->totalEmissions;
     }
 
@@ -171,6 +177,7 @@ class CarbonAssessment
 
     public function getScope1Emissions(): ?float
     {
+        $this->updateCalculations();
         return $this->scope1Emissions;
     }
 
@@ -182,6 +189,7 @@ class CarbonAssessment
 
     public function getScope2Emissions(): ?float
     {
+        $this->updateCalculations();
         return $this->scope2Emissions;
     }
 
@@ -193,6 +201,7 @@ class CarbonAssessment
 
     public function getScope3Emissions(): ?float
     {
+        $this->updateCalculations();
         return $this->scope3Emissions;
     }
 
@@ -271,7 +280,8 @@ class CarbonAssessment
     }
 
     /**
-     * Calculate total emissions based on all emission entries
+     * Calcule les émissions totales et par scope en tenant compte des unités (kgCO2e -> tCO2e).
+     * Arrondit à 2 chiffres après la virgule.
      */
     public function calculateEmissions(): void
     {
@@ -281,7 +291,10 @@ class CarbonAssessment
 
         foreach ($this->emissions as $emission) {
             $amount = $emission->getAmount() ?? 0;
-
+            $unit = $emission->getUnit();
+            if ($unit === 'kgCO2e') {
+                $amount = $amount / 1000;
+            }
             switch ($emission->getScope()) {
                 case 1:
                     $scope1 += $amount;
@@ -295,10 +308,10 @@ class CarbonAssessment
             }
         }
 
-        $this->scope1Emissions = $scope1;
-        $this->scope2Emissions = $scope2;
-        $this->scope3Emissions = $scope3;
-        $this->totalEmissions = $scope1 + $scope2 + $scope3;
+        $this->scope1Emissions = round($scope1, 2);
+        $this->scope2Emissions = round($scope2, 2);
+        $this->scope3Emissions = round($scope3, 2);
+        $this->totalEmissions = round($scope1 + $scope2 + $scope3, 2);
     }
 
     #[ORM\PrePersist]
