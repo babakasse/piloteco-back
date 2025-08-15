@@ -29,10 +29,10 @@ class EmissionCalculationServiceTest extends TestCase
 
     public function testCalculateEmissions(): void
     {
-        // Test that the calculation method works correctly
+        // Test que la méthode de calcul fonctionne correctement avec tCO2e
         $activityData = 100.0;
-        $emissionFactor = 0.5;
-        $expectedEmissions = 0.05; // 100 * 0.5 / 1000 = 0.05 tCO2e
+        $emissionFactor = 0.05; // Facteur en tCO2e par unité
+        $expectedEmissions = 5.0; // 100 * 0.05 = 5.0 tCO2e
 
         $result = $this->service->calculateEmissions($activityData, $emissionFactor);
 
@@ -69,7 +69,7 @@ class EmissionCalculationServiceTest extends TestCase
             'Test Source',
             'Test Category',
             100.0,
-            0.5,
+            0.5, // Emission factor in tCO2e per unit
             1,
             'tCO2e',
             'Test Description'
@@ -78,7 +78,7 @@ class EmissionCalculationServiceTest extends TestCase
         // Verify the emission was created correctly
         $this->assertEquals('Test Source', $emission->getSource());
         $this->assertEquals('Test Category', $emission->getCategory());
-        $this->assertEquals(0.05, $emission->getAmount());
+        $this->assertEquals(50.0, $emission->getAmount()); // 100 * 0.5 = 50.0 tCO2e
         $this->assertEquals(1, $emission->getScope());
         $this->assertEquals('tCO2e', $emission->getUnit());
         $this->assertEquals('Test Description', $emission->getDescription());
@@ -133,30 +133,45 @@ class EmissionCalculationServiceTest extends TestCase
      */
     public function testGetEmissionsByScope(): void
     {
-        // Create test objects
+        // Create test objects avec de vraies émissions au lieu de mocks
         $assessment = new CarbonAssessment();
         $assessment->setName('Test Assessment');
 
-        // Create mock emissions with different scopes
-        $emission1 = $this->createMock(Emission::class);
-        $emission1->method('getScope')->willReturn(1);
-        $emission1->method('getAmount')->willReturn(10.0);
+        // Create real emissions with different scopes
+        $emission1 = new Emission();
+        $emission1->setScope(1);
+        $emission1->setAmount(10.0);
+        $emission1->setSource('Test Source 1');
+        $emission1->setCategory('Test Category 1');
+        $emission1->setAssessment($assessment);
 
-        $emission2 = $this->createMock(Emission::class);
-        $emission2->method('getScope')->willReturn(2);
-        $emission2->method('getAmount')->willReturn(20.0);
+        $emission2 = new Emission();
+        $emission2->setScope(2);
+        $emission2->setAmount(20.0);
+        $emission2->setSource('Test Source 2');
+        $emission2->setCategory('Test Category 2');
+        $emission2->setAssessment($assessment);
 
-        $emission3 = $this->createMock(Emission::class);
-        $emission3->method('getScope')->willReturn(3);
-        $emission3->method('getAmount')->willReturn(30.0);
+        $emission3 = new Emission();
+        $emission3->setScope(3);
+        $emission3->setAmount(30.0);
+        $emission3->setSource('Test Source 3');
+        $emission3->setCategory('Test Category 3');
+        $emission3->setAssessment($assessment);
 
-        // Add emissions to assessment
+        // Add emissions to the assessment
         $assessment->addEmission($emission1);
         $assessment->addEmission($emission2);
         $assessment->addEmission($emission3);
 
-        // Since the service calls methods that don't exist, we'll mock the service behavior
-        // or skip this test until the service is properly implemented
-        $this->markTestSkipped('Service needs to be updated to calculate emissions from actual emission entities');
+        // Call the method
+        $result = $this->service->getEmissionsByScope($assessment);
+
+        // Verify the result
+        $this->assertEquals([
+            1 => 10.0,
+            2 => 20.0,
+            3 => 30.0
+        ], $result);
     }
 }

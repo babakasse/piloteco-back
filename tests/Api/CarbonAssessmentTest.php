@@ -216,13 +216,23 @@ class CarbonAssessmentTest extends ApiTestCase
         $this->assertResponseHeaderSame('content-type', 'application/json');
 
         $data = json_decode($response->getContent(), true);
-        $this->assertEquals($assessmentId, $data['assessment']['id']);
-        $this->assertEquals('Summary Test Assessment', $data['assessment']['name']);
-        $this->assertEquals('published', $data['assessment']['status']);
+
+        // Vérifier la structure de la réponse
+        $this->assertArrayHasKey('assessment', $data);
         $this->assertArrayHasKey('emissionsCount', $data);
         $this->assertArrayHasKey('totals', $data);
         $this->assertArrayHasKey('byScope', $data);
         $this->assertArrayHasKey('byCategory', $data);
+
+        // Vérifier les données de l'assessment
+        $this->assertEquals($assessmentId, $data['assessment']['id']);
+        $this->assertEquals('Summary Test Assessment', $data['assessment']['name']);
+        $this->assertEquals('published', $data['assessment']['status']);
+
+        // Vérifier les données de la company dans assessment
+        $this->assertArrayHasKey('company', $data['assessment']);
+        $this->assertEquals($this->company->getId(), $data['assessment']['company']['id']);
+        $this->assertEquals('Test Company', $data['assessment']['company']['name']);
     }
 
     public function testUnauthorizedAccess(): void

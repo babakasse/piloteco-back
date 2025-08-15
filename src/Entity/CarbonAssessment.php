@@ -280,7 +280,7 @@ class CarbonAssessment
     }
 
     /**
-     * Calcule les émissions totales et par scope en kgCO₂e uniquement.
+     * Calcule les émissions totales et par scope en tCO₂e uniquement.
      * Arrondit à 2 chiffres après la virgule.
      */
     public function calculateEmissions(): void
@@ -291,7 +291,7 @@ class CarbonAssessment
 
         foreach ($this->emissions as $emission) {
             $amount = $emission->getAmount() ?? 0;
-            // On suppose que toutes les émissions sont en kgCO₂e
+            // Toutes les émissions sont en tCO₂e
             switch ($emission->getScope()) {
                 case 1:
                     $scope1 += $amount;

@@ -40,12 +40,6 @@ class EmissionCalculationService
     public function calculateEmissions(float $activityData, float $emissionFactor, string $unit = 'tCO2e'): float
     {
         $result = $activityData * $emissionFactor;
-
-        // Convert to tCO2e if the result should be in tCO2e but factor is in kgCO2e
-        if ($unit === 'tCO2e') {
-            $result = $result / 1000;
-        }
-
         return round($result, 2);
     }
 
@@ -108,12 +102,6 @@ class EmissionCalculationService
         foreach ($emissions as $emission) {
             $category = $emission->getCategory();
             $amount = $emission->getAmount() ?? 0;
-            $unit = $emission->getUnit();
-
-            // Convert to tCO2e if necessary
-            if ($unit === 'kgCO2e') {
-                $amount = $amount / 1000;
-            }
 
             if (!isset($categories[$category])) {
                 $categories[$category] = 0;
@@ -138,10 +126,14 @@ class EmissionCalculationService
      */
     public function getEmissionsByScope(CarbonAssessment $assessment): array
     {
+        $scope1 = $assessment->getScope1Emissions() ?? 0;
+        $scope2 = $assessment->getScope2Emissions() ?? 0;
+        $scope3 = $assessment->getScope3Emissions() ?? 0;
+
         return [
-            1 => round($assessment->getScope1Emissions() ?? 0, 2),
-            2 => round($assessment->getScope2Emissions() ?? 0, 2),
-            3 => round($assessment->getScope3Emissions() ?? 0, 2)
+            1 => round($scope1, 2),
+            2 => round($scope2, 2),
+            3 => round($scope3, 2)
         ];
     }
 }

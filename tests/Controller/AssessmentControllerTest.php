@@ -171,13 +171,18 @@ class AssessmentControllerTest extends ApiTestCase
         $this->assertResponseHeaderSame('content-type', 'application/json');
 
         $data = json_decode($response->getContent(), true);
-        $this->assertEquals($this->assessment->getId(), $data['assessment']['id']);
-        $this->assertEquals('Test Assessment', $data['assessment']['name']);
-        $this->assertEquals('draft', $data['assessment']['status']);
+
+        // Vérifier la structure de base de la réponse
+        $this->assertArrayHasKey('assessment', $data);
         $this->assertArrayHasKey('emissionsCount', $data);
         $this->assertArrayHasKey('totals', $data);
         $this->assertArrayHasKey('byScope', $data);
         $this->assertArrayHasKey('byCategory', $data);
+
+        // Vérifier les données de l'assessment
+        $this->assertEquals($this->assessment->getId(), $data['assessment']['id']);
+        $this->assertEquals('Test Assessment', $data['assessment']['name']);
+        $this->assertEquals('draft', $data['assessment']['status']);
     }
 
     public function testAccessDeniedForOtherCompanyAssessment(): void

@@ -204,6 +204,10 @@ class AssessmentController extends AbstractController
                 'status' => $assessment->getStatus(),
                 'assessmentDate' => $assessment->getAssessmentDate()?->format('Y-m-d'),
                 'createdAt' => $assessment->getCreatedAt()?->format('Y-m-d H:i:s'),
+                'company' => [
+                    'id' => $assessment->getCompany()->getId(),
+                    'name' => $assessment->getCompany()->getName(),
+                ],
             ],
             'totals' => [
                 'totalEmissions' => round($assessment->getTotalEmissions() ?? 0, 2),

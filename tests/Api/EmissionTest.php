@@ -177,17 +177,20 @@ class EmissionTest extends ApiTestCase
         $this->assertResponseHeaderSame('content-type', 'application/json');
 
         $data = json_decode($response->getContent(), true);
+
+        // Vérifier la structure de la réponse
+        $this->assertArrayHasKey('assessment', $data);
+        $this->assertArrayHasKey('emissionsCount', $data);
+        $this->assertArrayHasKey('totals', $data);
+        $this->assertArrayHasKey('byScope', $data);
+        $this->assertArrayHasKey('byCategory', $data);
+
+        // Vérifier les données de l'assessment
         $this->assertEquals($this->assessment->getId(), $data['assessment']['id']);
         $this->assertEquals('Emission Test Assessment', $data['assessment']['name']);
         $this->assertEquals('draft', $data['assessment']['status']);
 
-        // Check that the emissions are included in the summary
-        $this->assertArrayHasKey('byScope', $data);
-        $this->assertArrayHasKey('byCategory', $data);
-        $this->assertArrayHasKey('emissionsCount', $data);
-        $this->assertArrayHasKey('totals', $data);
-
-        // Check the scope totals
+        // Check the scope totals - les émissions créées dans setUp devraient être calculées
         $this->assertEquals(10.5, $data['byScope'][1]);
         $this->assertEquals(20.3, $data['byScope'][2]);
         $this->assertEquals(0, $data['byScope'][3]);
