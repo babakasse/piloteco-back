@@ -24,6 +24,7 @@ RUN apk add --no-cache \
     git \
     libpq \
     postgresql-dev \
+    make \
 ;
 
 RUN set -eux; \
@@ -92,7 +93,10 @@ RUN rm -Rf frankenphp/
 
 RUN set -eux; \
 	mkdir -p var/cache var/log; \
+	chown -R www-data:www-data var/cache var/log; \
 	composer dump-autoload --classmap-authoritative --no-dev; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
-	chmod +x bin/console; sync;
+	chmod +x bin/console; \
+    php bin/console cache:warmup --env=prod; \
+    sync;
