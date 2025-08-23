@@ -40,6 +40,8 @@ echo -e "\n${YELLOW}Test 3: Test de réponse HTTP de l'API${NC}"
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api 2>/dev/null || echo "000")
 if [ "$HTTP_CODE" = "200" ]; then
     echo -e "${GREEN}✅ API répond avec HTTP 200${NC}"
+elif [ "$HTTP_CODE" = "308" ] || [ "$HTTP_CODE" = "301" ]; then
+    echo -e "${GREEN}✅ API accessible (redirection HTTPS - HTTP $HTTP_CODE)${NC}"
 elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "404" ]; then
     echo -e "${GREEN}✅ API accessible (HTTP $HTTP_CODE - normal sans auth)${NC}"
 else
