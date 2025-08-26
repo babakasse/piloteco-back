@@ -3,6 +3,7 @@ framework:
     secret: '%env(APP_SECRET)%'
     trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_hosts: '%env(TRUSTED_HOSTS)%'
+    trusted_headers: '%env(TRUSTED_HEADERS)%'
 
     # Note that the session will be started ONLY if you read or write from it.
     session: true
