@@ -1,227 +1,484 @@
-# PilotEco Backend Development Guidelines
+# 🌱 PilotEco Backend API
 
-This document provides essential information for developers working on the PilotEco backend project.
+API REST pour l'évaluation et la gestion de l'empreinte carbone des entreprises, développée avec Symfony et FrankenPHP.
 
-## Build/Configuration Instructions
+## 🚀 Démarrage rapide
 
-### Prerequisites
-- Docker and Docker Compose
-- PHP 8.4.3 or higher
-- Composer
+### Prérequis
+- [Docker](https://www.docker.com/) et Docker Compose (v2.10+)
+- Git
 
-### Setting Up the Development Environment
+### Installation
 
-1. **Clone the repository**
+```bash
+# 1. Cloner le repository
+git clone <repository-url>
+cd piloteco-back
 
-2. **Start the Docker containers**
-   ```bash
-   make start
-   ```
-   This command builds the Docker images and starts the containers in detached mode.
+# 2. Démarrer l'environnement Docker
+make start
 
-3. **Install dependencies**
-   ```bash
-   make composer c="install"
-   ```
+# 3. Installer les dépendances
+make composer c="install"
 
-4. **Initialize the database**
-   ```bash
-   make init-db
-   ```
-   This command drops and recreates the database, runs migrations, and loads fixtures.
+# 4. Initialiser la base de données
+make sf c="doctrine:migrations:migrate"
+make sf c="doctrine:fixtures:load"
+```
 
-### Common Commands
+### Accès
+- **API** : http://localhost/api
+- **Documentation** : http://localhost/api/docs
+- **Interface Swagger** : http://localhost/api/docs.json
 
-- **Start the application**
-  ```bash
-  make up
-  ```
+## 🛠️ Commandes de développement
 
-- **Stop the application**
-  ```bash
-  make down
-  ```
+### Gestion des conteneurs
 
-- **View logs**
-  ```bash
-  make logs
-  ```
+```bash
+# Démarrer l'application
+make start              # Construire et démarrer
 
-- **Access the PHP container shell**
-  ```bash
-  make sh
-  ```
+# Gestion des conteneurs
+make up                 # Démarrer les conteneurs
+make down               # Arrêter les conteneurs
+make logs               # Voir les logs en temps réel
 
-- **Clear Symfony cache**
-  ```bash
-  make cc
-  ```
+# Shell et débogage
+make sh                 # Accéder au conteneur PHP
+```
 
-## Testing Information
+### Symfony et base de données
 
-### Test Configuration
+```bash
+# Composer
+make composer c="install"                    # Installer les dépendances
+make composer c="require vendor/package"     # Ajouter un package
 
-The project uses PHPUnit for testing with the following configuration:
-- Tests are located in the `tests/` directory
-- The DAMA Doctrine Test Bundle is used to wrap tests in transactions
-- The test environment is configured in `.env.test`
+# Commandes Symfony
+make sf c="cache:clear"                      # Vider le cache
+make sf c="debug:router"                     # Voir les routes
+make sf c="doctrine:migrations:migrate"      # Exécuter les migrations
+make sf c="doctrine:fixtures:load"           # Charger les fixtures
+```
 
-### Running Tests
+## 🧪 Validation Docker
 
-1. **Initialize the test database**
-   ```bash
-   make init-test
-   ```
-   This command creates the test database, runs migrations, and loads fixtures.
+### Script de validation d'environnement
 
-2. **Run all tests**
-   ```bash
-   make test
-   ```
+Le projet inclut un script `test-docker.sh` pour valider que l'environnement Docker fonctionne correctement :
 
-3. **Run specific tests**
-   ```bash
-   make test c="tests/Path/To/TestFile.php"
-   ```
+```bash
+# Validation complète de l'environnement
+./test-docker.sh
+```
 
-4. **Run tests with coverage**
-   ```bash
-   make test-coverage
-   ```
-   This generates HTML coverage reports in `var/coverage/`.
+### Tests automatisés
 
-5. **Run specific test suites**
-   ```bash
-   make test-unit       # Run unit tests
-   make test-integration # Run integration tests
-   make test-functional  # Run functional tests
-   ```
+Le script effectue 4 vérifications essentielles :
 
-### Adding New Tests
+```bash
+✅ Conteneurs Docker démarrés
+✅ PostgreSQL accessible  
+✅ API HTTP répond
+✅ Port 80 accessible
+```
 
-1. **Create a new test file**
-    - Place controller tests in `tests/Controller/`
-    - Place API tests in `tests/Api/`
-    - Follow the naming convention: `*Test.php`
+### Informations fournies
 
-2. **Extend the appropriate test case**
-    - For API tests, extend `ApiPlatform\Symfony\Bundle\Test\ApiTestCase`
-    - For other tests, extend `Symfony\Bundle\FrameworkBundle\Test\KernelTestCase` or `PHPUnit\Framework\TestCase`
+Le script affiche un résumé complet :
+- **État des conteneurs** avec statut et ports
+- **Points d'accès** (API, documentation, base)
+- **Services validés** (FrankenPHP, Symfony, PostgreSQL)
+- **Commandes utiles** pour la suite
 
-3. **Example test structure**
-   ```php
-   <?php
-   
-   namespace App\Tests\Controller;
-   
-   use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
-   
-   class MyControllerTest extends ApiTestCase
-   {
-       public function testSomeFunctionality(): void
-       {
-           $client = self::createClient();
-           
-           // Test setup
-           
-           // Make request
-           $client->request('GET', '/endpoint');
-           
-           // Assertions
-           $this->assertResponseIsSuccessful();
-           $this->assertJsonContains(['key' => 'value']);
-       }
-   }
-   ```
+### Tests PHPUnit
 
-## Additional Development Information
+Pour les tests unitaires/intégration Symfony :
 
-### Project Structure
+```bash
+# Tests via Makefile
+make sf c="test"                             # Tous les tests
+make sf c="test tests/Api/UserTest.php"      # Test spécifique
+make sf c="test --coverage-html var/coverage" # Avec couverture
+```
 
-- `src/Controller/` - Contains API controllers
-- `src/Entity/` - Contains Doctrine entities
-- `src/Repository/` - Contains Doctrine repositories
-- `src/DataFixtures/` - Contains data fixtures for testing
-- `config/` - Contains application configuration
-- `migrations/` - Contains database migrations
+### Workflow de validation recommandé
 
-### API Platform
+```bash
+# 1. Démarrer l'environnement
+make start
 
-The project uses API Platform for building the REST API. Key features:
-- API resources are defined in `src/Entity/` using annotations/attributes
-- Custom operations can be defined in controllers
-- API documentation is available at `/docs`
+# 2. Valider la configuration Docker
+./test-docker.sh
 
-### Authentication
+# 3. Exécuter les tests applicatifs
+make sf c="test"
 
-The project uses Lexik JWT Authentication Bundle for JWT-based authentication:
-- Login endpoint: `/login`
-- Authentication is required for most endpoints
-- JWT tokens should be included in the Authorization header: `Authorization: Bearer {token}`
+# 4. Vérifier avant commit
+./test-docker.sh && make sf c="test"
+```
 
-### Database
+## 🏗️ Architecture du projet
 
-The project uses PostgreSQL as the database:
-- Database configuration is in `.env` and `config/packages/doctrine.yaml`
-- Migrations are managed with Doctrine Migrations Bundle
-- Run `make init-db` to initialize the database with test data
+### Architecture technique
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (React)                        │
+│                    piloteco-frontend                        │
+│                     Port 3000                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ HTTP/HTTPS Requests
+                      │ (JWT Authentication)
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  FrankenPHP + Caddy                        │
+│               Reverse Proxy & HTTPS                        │
+│                Port 80 (HTTP) / 443 (HTTPS)               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Symfony 7.x API                          │
+│                 piloteco-backend                            │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Controllers │  │   Services  │  │    API Platform     │ │
+│  │             │  │             │  │                     │ │
+│  │ • Auth      │  │ • Carbon    │  │ • Auto Doc          │ │
+│  │ • Assessment│  │ • Company   │  │ • Validation        │ │
+│  │ • User      │  │ • Report    │  │ • Serialization     │ │
+│  │ • Company   │  │ • Export    │  │ • Pagination        │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │  Entities   │  │ Repositories│  │    Security         │ │
+│  │             │  │             │  │                     │ │
+│  │ • User      │  │ • Doctrine  │  │ • JWT Auth          │ │
+│  │ • Company   │  │ • Custom    │  │ • Role-based        │ │
+│  │ • Assessment│  │ • Queries   │  │ • CORS              │ │
+│  │ • Emission  │  │             │  │ • Validation        │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ Doctrine ORM
+                      │ (PDO PostgreSQL)
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 PostgreSQL 16                               │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   Tables    │  │   Indexes   │  │    Constraints      │ │
+│  │             │  │             │  │                     │ │
+│  │ • users     │  │ • Primary   │  │ • Foreign Keys      │ │
+│  │ • companies │  │ • Foreign   │  │ • Unique Keys       │ │
+│  │ • assessments│ │ • Composite │  │ • Check Rules       │ │
+│  │ • emissions │  │ • Text      │  │ • Not Null          │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│                        Port 5432                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Structure des dossiers détaillée
+
+```
+piloteco-back/
+├── 🐳 Docker Configuration
+│   ├── compose.yaml              # Configuration Docker principale
+│   ├── compose.override.yaml     # Override pour développement
+│   ├── compose.prod.yaml         # Configuration production
+│   ├── Dockerfile               # Image FrankenPHP personnalisée
+│   └── frankenphp/              # Configuration serveur
+│       ├── Caddyfile            # Configuration Caddy
+│       └── conf.d/              # Configuration PHP
+│
+├── 🔧 Configuration Symfony
+│   ├── config/
+│   │   ├── packages/            # Configuration des bundles
+│   │   │   ├── api_platform.yaml
+│   │   │   ├── doctrine.yaml
+│   │   │   ├── lexik_jwt_authentication.yaml
+│   │   │   └── security.yaml
+│   │   ├── routes/              # Configuration des routes
+│   │   └── jwt/                 # Clés de chiffrement JWT
+│   │
+│   ├── 📊 Application Logic
+│   ├── src/
+│   │   ├── Entity/              # Modèles de données
+│   │   │   ├── User.php
+│   │   │   ├── Company.php
+│   │   │   ├── CarbonAssessment.php
+│   │   │   └── Emission.php
+│   │   │
+│   │   ├── Controller/          # Points d'entrée API
+│   │   │   ├── AuthController.php
+│   │   │   ├── AssessmentController.php
+│   │   │   ├── UserController.php
+│   │   │   └── CompanyController.php
+│   │   │
+│   │   ├── Service/             # Logique métier
+│   │   │   ├── CarbonCalculatorService.php
+│   │   │   ├── CompanyService.php
+│   │   │   ├── ReportService.php
+│   │   │   └── ExportService.php
+│   │   │
+│   │   ├── Repository/          # Accès aux données
+│   │   │   ├── UserRepository.php
+│   │   │   ├── CompanyRepository.php
+│   │   │   └── AssessmentRepository.php
+│   │   │
+│   │   ├── Dto/                 # Data Transfer Objects
+│   │   │   ├── UserRegistrationRequest.php
+│   │   │   ├── AuthenticationResponse.php
+│   │   │   └── UserResponse.php
+│   │   │
+│   │   └── Exception/           # Exceptions personnalisées
+│   │       ├── AppException.php
+│   │       ├── ConflictException.php
+│   │       └── ValidationException.php
+│   │
+│   ├── 🗄️ Base de données
+│   ├── migrations/              # Migrations Doctrine
+│   │   ├── Version20250220232635.php
+│   │   ├── Version20250223175553.php
+│   │   └── ...
+│   │
+│   ├── src/DataFixtures/        # Données de test
+│   │   └── AppFixtures.php
+│   │
+│   ├── 🧪 Tests
+│   ├── tests/
+│   │   ├── Api/                 # Tests d'endpoints
+│   │   ├── Controller/          # Tests de contrôleurs
+│   │   ├── Integration/         # Tests d'intégration
+│   │   └── Unit/               # Tests unitaires
+│   │
+│   ├── 📚 Documentation
+│   ├── docs/
+│   │   ├── build.md
+│   │   ├── production.md
+│   │   ├── troubleshooting.md
+│   │   └── xdebug.md
+│   │
+│   └── 🛠️ Outils de développement
+│       ├── Makefile             # Commandes de développement
+│       ├── phpunit.xml.dist     # Configuration des tests
+│       ├── composer.json        # Dépendances PHP
+│       └── symfony.lock         # Versions des recipes
+```
+
+### Flux de données
+
+#### 1. Authentification JWT
+```
+Client → POST /api/login → AuthController → User Entity → JWT Token → Client
+```
+
+#### 2. Évaluation carbone
+```
+Client → POST /api/assessments → AssessmentController → CarbonCalculatorService → 
+Assessment Entity → Database → Response with calculated emissions
+```
+
+#### 3. Gestion des entreprises
+```
+Client → GET /api/companies → CompanyController → CompanyRepository → 
+Company Entity → Serialization → JSON Response
+```
+
+### Technologies utilisées
+
+| Composant | Technologie | Version | Rôle |
+|-----------|-------------|---------|------|
+| **Framework** | Symfony | 7.x | Framework PHP moderne |
+| **Serveur** | FrankenPHP | Latest | Serveur PHP haute performance |
+| **Proxy** | Caddy | 2.x | Reverse proxy + HTTPS automatique |
+| **Base de données** | PostgreSQL | 16 | Base de données relationnelle |
+| **API** | API Platform | 3.x | Framework API REST/GraphQL |
+| **ORM** | Doctrine | 3.x | Object-Relational Mapping |
+| **Auth** | Lexik JWT | 3.x | Authentification JWT |
+| **Tests** | PHPUnit | 10.x | Framework de tests |
+| **Conteneurs** | Docker | 24.x | Containerisation |
+
+### Patterns architecturaux
+
+#### 🎯 **Domain-Driven Design (DDD)**
+- **Entities** : Modèles métier avec logique
+- **Services** : Logique métier complexe
+- **Repositories** : Abstraction d'accès aux données
+- **DTOs** : Transfert de données entre couches
+
+#### 🔄 **API-First Design**
+- **API Platform** : Documentation automatique
+- **OpenAPI/Swagger** : Spécification standardisée
+- **Validation** : Contraintes automatiques
+- **Sérialisation** : Transformation automatique
+
+#### 🛡️ **Security by Design**
+- **JWT Authentication** : Stateless et sécurisé
+- **CORS** : Protection cross-origin
+- **Rate Limiting** : Protection contre les abus
+- **Input Validation** : Validation stricte des données
+
+#### 📊 **Performance-Oriented**
+- **FrankenPHP Worker** : Mode worker pour performance
+- **HTTP/2 & HTTP/3** : Protocoles modernes
+- **OpCache** : Cache de bytecode PHP
+- **Database Indexing** : Optimisation des requêtes
+
+### Environnements
+
+| Environnement | Configuration | Base de données | Serveur | Debug |
+|---------------|---------------|-----------------|---------|-------|
+| **Développement** | `.env` | PostgreSQL local | FrankenPHP:80 | ✅ |
+| **Test** | `.env.test` | PostgreSQL test | Memory | ✅ |
+| **Production** | `.env.prod` | PostgreSQL prod | FrankenPHP:443 | ❌ |
+
+## 🔐 Authentification
+
+### JWT Authentication
+
+```bash
+# Endpoints d'authentification
+POST /api/register      # Inscription
+POST /api/login         # Connexion
+GET  /api/me           # Profil utilisateur
+```
+
+### Utilisation
+
+```bash
+# 1. S'inscrire ou se connecter
+curl -X POST http://localhost/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "password"}'
+
+# 2. Utiliser le token retourné
+curl -X GET http://localhost/api/assessments \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+## 🗄️ Base de données
+
+### Gestion des migrations
+
+```bash
+# Créer une migration
+make sf c="make:migration"
+
+# Exécuter les migrations
+make sf c="doctrine:migrations:migrate"
+
+# Voir le statut des migrations
+make sf c="doctrine:migrations:status"
+
+# Rollback
+make sf c="doctrine:migrations:execute --down VERSION"
+```
+
+### Fixtures
+
+```bash
+# Charger les données de test
+make sf c="doctrine:fixtures:load"
+
+# Charger sans confirmation
+make sf c="doctrine:fixtures:load --no-interaction"
+```
+
+## 📋 API Endpoints
+
+### Assessments (Évaluations carbone)
+
+```bash
+GET    /api/assessments           # Liste des évaluations
+POST   /api/assessments           # Créer une évaluation
+GET    /api/assessments/{id}      # Détail d'une évaluation
+PUT    /api/assessments/{id}      # Modifier une évaluation
+DELETE /api/assessments/{id}      # Supprimer une évaluation
+```
+
+### Users (Utilisateurs)
+
+```bash
+GET    /api/users                # Liste des utilisateurs (admin)
+GET    /api/users/{id}           # Profil utilisateur
+PUT    /api/users/{id}           # Modifier un utilisateur
+```
+
+### Companies (Entreprises)
+
+```bash
+GET    /api/companies            # Liste des entreprises
+POST   /api/companies            # Créer une entreprise
+GET    /api/companies/{id}       # Détail d'une entreprise
+```
+
+## 🐳 Docker
+
+### Services
+
+- **php** : FrankenPHP + Symfony (port 80/443)
+- **database** : PostgreSQL 16 (port 5432)
+
+### Configuration
+
+Voir [DOCKER.md](DOCKER.md) pour la documentation complète Docker.
+
+## 🔧 Développement
+
+### Débogage
+
+```bash
+# Activer Xdebug
+echo "XDEBUG_MODE=debug" >> .env
+make down && make start
+
+# Voir les logs
+make logs
+
+# Profiler Symfony
+make sf c="debug:config"
+make sf c="debug:container"
+```
 
 ### Code Style
 
-- Follow PSR-12 coding standards
-- Use type hints for parameters and return types
-- Document public methods with PHPDoc comments
-- Keep controllers thin, move business logic to services
+- Suivre les standards PSR-12
+- Utiliser les type hints
+- Documenter les méthodes publiques avec PHPDoc
+- Garder les contrôleurs légers
 
---- 
- 
-# Symfony Docker (Official documentation)
+### Git Workflow
 
-[![Symfony Docker](https://raw.githubusercontent.com/dunglas/symfony-docker/main/.github/logo.png)](
+```bash
+# Après un pull
+make composer c="install"
+make sf c="doctrine:migrations:migrate"
 
-A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
-with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) inside!
+# Avant un push
+make sf c="test"
+make sf c="cache:clear"
+```
 
-![CI](https://github.com/dunglas/symfony-docker/workflows/CI/badge.svg)
+## 📚 Documentation
 
-## Getting Started
+- [Configuration Docker](DOCKER.md)
+- [Makefile Commands](docs/makefile.md)
+- [Production Deployment](docs/production.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
-1. If not already done, [install Docker Compose](https://docs.docker.com/compose/install/) (v2.10+)
-2. Run `docker compose build --no-cache` to build fresh images
-3. Run `docker compose up --pull always -d --wait` to start the project
-4. Open `https://localhost` in your favorite web browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
-5. Run `docker compose down --remove-orphans` to stop the Docker containers.
+## 🎯 Features
 
-## Features
+- ✅ Production, développement et CI ready
+- ✅ Performance optimale avec FrankenPHP Worker mode
+- ✅ HTTPS automatique (dev et prod)
+- ✅ Support HTTP/3 et Early Hints
+- ✅ Messagerie temps réel avec Mercure
+- ✅ Intégration native XDebug
+- ✅ Documentation API automatique
+- ✅ Tests automatisés complets
 
-* Production, development and CI ready
-* Just 1 service by default
-* Blazing-fast performance thanks to [the worker mode of FrankenPHP](https://github.com/dunglas/frankenphp/blob/main/docs/worker.md) (automatically enabled in prod mode)
-* [Installation of extra Docker Compose services](docs/extra-services.md) with Symfony Flex
-* Automatic HTTPS (in dev and prod)
-* HTTP/3 and [Early Hints](https://symfony.com/blog/new-in-symfony-6-3-early-hints) support
-* Real-time messaging thanks to a built-in [Mercure hub](https://symfony.com/doc/current/mercure.html)
-* [Vulcain](https://vulcain.rocks) support
-* Native [XDebug](docs/xdebug.md) integration
-* Super-readable configuration
+---
 
-**Enjoy!**
-
-## Docs
-
-1. [Build options](docs/build.md)
-2. [Using Symfony Docker with an existing project](docs/existing-project.md)
-3. [Support for extra services](docs/extra-services.md)
-4. [Deploying in production](docs/production.md)
-5. [Debugging with Xdebug](docs/xdebug.md)
-6. [TLS Certificates](docs/tls.md)
-7. [Using a Makefile](docs/makefile.md)
-8. [Troubleshooting](docs/troubleshooting.md)
-
-## License
-
-Symfony Docker is available under the MIT License.
-
-## Credits
-
-Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+*Consultez `make help` pour voir toutes les commandes disponibles.*
