@@ -73,7 +73,7 @@ class AppFixtures extends Fixture
         // Creating carbon assessments
         $categories = ['Electricity', 'Heating', 'Transportation', 'Business Travel', 'Waste', 'Water', 'Materials', 'Food', 'Services', 'Equipment'];
         $sources = ['Grid Electricity', 'Natural Gas', 'Company Vehicles', 'Air Travel', 'Landfill Waste', 'Water Supply', 'Raw Materials', 'Employee Meals', 'Cloud Services', 'IT Equipment'];
-        $unit = 'kgCO₂e';
+        $unit = 'tCO₂e';
 
         $assessments = [];
         foreach ($companies as $index => $company) {
@@ -102,7 +102,7 @@ class AppFixtures extends Fixture
             for ($i = 1; $i <= $numEmissions; $i++) {
                 $emission = new Emission();
                 $categoryIndex = rand(0, count($categories) - 1);
-                // Valeur aléatoire en kgCO₂e (0.1 à 100)
+                // Valeur aléatoire en tCO₂e (0.1 à 100)
                 $amount = rand(1, 1000) / 10;
                 $emission->setSource($sources[$categoryIndex])
                     ->setCategory($categories[$categoryIndex])
