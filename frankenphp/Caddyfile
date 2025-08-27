@@ -1,4 +1,6 @@
 {
+	auto_https off
+
 	{$CADDY_GLOBAL_OPTIONS}
 
 	frankenphp {
