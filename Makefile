@@ -49,8 +49,28 @@ sf: ## List all Symfony commands or pass the parameter "c=" to run a given comma
 	@$(eval c ?=)
 	@$(SYMFONY) $(c)
 
-cc: c=c:c ## Clear the cache
+cc: ## Clear the cache
+cc: c=cache:clear
 cc: sf
+
+## —— Database 🗄️ ————————————————————————————————————————————————————————————————
+db-migrate: ## Run database migrations
+	@$(SYMFONY) doctrine:migrations:migrate --no-interaction
+
+db-fixtures: ## Load development fixtures (AppFixtures)
+	@$(SYMFONY) doctrine:fixtures:load --no-interaction
+
+db-demo: ## Load demo data for production demonstrations
+	@$(SYMFONY) app:load-demo-data
+
+db-demo-force: ## Force load demo data (even if data already exists)
+	@$(SYMFONY) app:load-demo-data --force
+
+db-reset: ## Reset database with fresh schema and demo data
+	@$(SYMFONY) doctrine:database:drop --force --if-exists
+	@$(SYMFONY) doctrine:database:create
+	@$(SYMFONY) doctrine:migrations:migrate --no-interaction
+	@$(SYMFONY) app:load-demo-data --force
 
 ## —— Fixtures & Database ————————————————————————————————————————————————————
 fixtures: ## Load Symfony Doctrine fixtures
