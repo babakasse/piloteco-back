@@ -34,6 +34,7 @@ RUN set -eux; \
         opcache \
         zip \
         pdo_pgsql \
+        pgsql \
     ;
 
 ###> recipes ###
