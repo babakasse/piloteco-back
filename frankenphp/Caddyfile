@@ -46,12 +46,15 @@
 
 	vulcain
 
+    {$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+
 	# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
 	header ?Permissions-Policy "browsing-topics=()"
 
     # Détection HTTPS pour Azure Frontend
-    @notHttps header X-Forwarded-Proto http
-    redir @notHttps https://{host}{uri} permanent
+    #@notHttps header X-Forwarded-Proto http
+    #redir @notHttps https://{host}{uri} permanent
 
     php_server
 }
