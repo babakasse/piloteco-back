@@ -4,6 +4,9 @@ services:
     build:
       context: .
       target: frankenphp_prod
+    volumes:
+      - ./frankenphp/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - ./frankenphp/conf.d/app.prod.ini:/usr/local/etc/php/conf.d/app.prod.ini:ro
     environment:
       APP_SECRET: ${APP_SECRET}
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
