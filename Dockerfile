@@ -101,7 +101,3 @@ RUN set -eux; \
 	chmod +x bin/console; \
     php bin/console cache:warmup --env=prod; \
     sync;
-
-FROM frankenphp_prod AS frankenphp_debug
-CMD [ "sh" ]
-
