@@ -26,7 +26,8 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		composer install --prefer-dist --no-progress --no-interaction
 	fi
 
-	if grep -q ^DATABASE_URL= .env; then
+	# Vérifier si DATABASE_URL est définie (fichier .env ou variable d'environnement)
+	if grep -q ^DATABASE_URL= .env 2>/dev/null || [ -n "$DATABASE_URL" ]; then
 		echo "Waiting for database to be ready..."
 		ATTEMPTS_LEFT_TO_REACH_DATABASE=60
 		until [ $ATTEMPTS_LEFT_TO_REACH_DATABASE -eq 0 ] || DATABASE_ERROR=$(php bin/console dbal:run-sql -q "SELECT 1" 2>&1); do
@@ -48,8 +49,11 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 			echo "The database is now ready and reachable"
 		fi
 
-		if [ "$( find ./migrations -iname '*.php' -print -quit )" ]; then
+		# Exécuter les migrations si MIGRATE_DB=true ou si des fichiers de migration existent
+		if [ "$MIGRATE_DB" = "true" ] || [ "$( find ./migrations -iname '*.php' -print -quit 2>/dev/null )" ]; then
+			echo "Running database migrations..."
 			php bin/console doctrine:migrations:migrate --no-interaction
+			echo "Migrations completed successfully!"
 		fi
 	fi
 
