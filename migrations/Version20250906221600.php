@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Migration pour charger les données de démonstration en production
  */
-final class Version20250906220000 extends AbstractMigration
+final class Version20250906221600 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -50,10 +50,10 @@ final class Version20250906220000 extends AbstractMigration
 
         // Insertion des évaluations carbone
         $this->addSql("INSERT INTO carbon_assessment (name, description, assessment_date, status, company_id) VALUES 
-            ('Bilan Carbone 2023 - EcoTech Solutions', 'Évaluation complète des émissions GES pour l''année 2023', DATE_SUB(NOW(), INTERVAL 2 MONTH), 'published', (SELECT id FROM company WHERE name = 'EcoTech Solutions' LIMIT 1)),
-            ('Audit Carbone Q4 2023 - Green Manufacturing', 'Audit trimestriel des émissions de la production', DATE_SUB(NOW(), INTERVAL 1 MONTH), 'published', (SELECT id FROM company WHERE name = 'Green Manufacturing Co.' LIMIT 1)),
-            ('Bilan Carbone Transport 2023 - Sustainable Logistics', 'Analyse des émissions liées au transport et à la logistique', DATE_SUB(NOW(), INTERVAL 21 DAY), 'draft', (SELECT id FROM company WHERE name = 'Sustainable Logistics' LIMIT 1)),
-            ('Évaluation Carbone 2024 - CleanEnergy Corp', 'Bilan carbone préliminaire pour 2024', DATE_SUB(NOW(), INTERVAL 7 DAY), 'draft', (SELECT id FROM company WHERE name = 'CleanEnergy Corp' LIMIT 1))
+            ('Bilan Carbone 2023 - EcoTech Solutions', 'Évaluation complète des émissions GES pour l''année 2023', NOW() - INTERVAL '2 MONTH', 'published', (SELECT id FROM company WHERE name = 'EcoTech Solutions' LIMIT 1)),
+            ('Audit Carbone Q4 2023 - Green Manufacturing', 'Audit trimestriel des émissions de la production', NOW() - INTERVAL '1 MONTH', 'published', (SELECT id FROM company WHERE name = 'Green Manufacturing Co.' LIMIT 1)),
+            ('Bilan Carbone Transport 2023 - Sustainable Logistics', 'Analyse des émissions liées au transport et à la logistique', NOW() - INTERVAL '21 DAY', 'draft', (SELECT id FROM company WHERE name = 'Sustainable Logistics' LIMIT 1)),
+            ('Évaluation Carbone 2024 - CleanEnergy Corp', 'Bilan carbone préliminaire pour 2024', NOW() - INTERVAL '7 DAY', 'draft', (SELECT id FROM company WHERE name = 'CleanEnergy Corp' LIMIT 1))
         ");
 
         // Insertion des émissions pour EcoTech Solutions
