@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Migration pour charger les données de démonstration en production
  */
-final class Version20250906150000 extends AbstractMigration
+final class Version20250906220000 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -20,7 +20,6 @@ final class Version20250906150000 extends AbstractMigration
     public function up(Schema $schema): void
     {
         // Ne charger les données de démonstration qu'en production
-        // En local, utiliser les fixtures avec : php bin/console doctrine:fixtures:load
         if ($_ENV['APP_ENV'] !== 'prod') {
             $this->write('⚠️  Migration ignorée : utilisez les fixtures en local avec "php bin/console doctrine:fixtures:load"');
             return;
@@ -37,22 +36,17 @@ final class Version20250906150000 extends AbstractMigration
             ('BioCare Health', '654 Medical Center, Toulouse, France', 'Healthcare')
         ");
 
-        // Insertion des utilisateurs de démonstration (avec vérification d'existence)
+        // Insertion des utilisateurs de démonstration
         // Note: Le mot de passe haché correspond à 'DemoPassword2024!'
         $hashedPassword = '$2y$13$Hg8RjD.KqN/LbV8ZqF4XQeJGN7xQ8YmZ2cJWE9.CvR6iP3mF5jJ8K';
 
-        $this->addSql('INSERT INTO "user" (email, first_name, last_name, roles, password, company_id, created_at, updated_at) 
-            SELECT v.email, v.first_name, v.last_name, v.roles, v.password, c.id, NOW(), NOW()
-            FROM (VALUES 
-                (\'demo.admin@piloteco.fr\', \'Admin\', \'Demo\', \'["ROLE_ADMIN"]\', \'' . $hashedPassword . '\', \'EcoTech Solutions\'),
-                (\'demo.manager@ecotech.fr\', \'Marie\', \'Dubois\', \'["ROLE_USER"]\', \'' . $hashedPassword . '\', \'EcoTech Solutions\'),
-                (\'demo.analyst@greenmanuf.fr\', \'Pierre\', \'Martin\', \'["ROLE_USER"]\', \'' . $hashedPassword . '\', \'Green Manufacturing Co.\'),
-                (\'demo.consultant@sustainable.fr\', \'Sophie\', \'Durand\', \'["ROLE_USER"]\', \'' . $hashedPassword . '\', \'Sustainable Logistics\'),
-                (\'demo.expert@cleanenergy.fr\', \'Thomas\', \'Leroy\', \'["ROLE_USER"]\', \'' . $hashedPassword . '\', \'CleanEnergy Corp\')
-            ) AS v(email, first_name, last_name, roles, password, company_name)
-            JOIN company c ON c.name = v.company_name
-            WHERE NOT EXISTS (SELECT 1 FROM "user" WHERE "user".email = v.email)
-        ');
+        $this->addSql("INSERT INTO \"user\" (email, first_name, last_name, roles, password, company_id, created_at, updated_at) VALUES 
+            ('demo.admin@piloteco.fr', 'Admin', 'Demo', '[\"ROLE_ADMIN\"]'::json, '" . $hashedPassword . "', (SELECT id FROM company WHERE name = 'EcoTech Solutions' LIMIT 1), NOW(), NOW()),
+            ('demo.manager@ecotech.fr', 'Marie', 'Dubois', '[\"ROLE_USER\"]'::json, '" . $hashedPassword . "', (SELECT id FROM company WHERE name = 'EcoTech Solutions' LIMIT 1), NOW(), NOW()),
+            ('demo.analyst@greenmanuf.fr', 'Pierre', 'Martin', '[\"ROLE_USER\"]'::json, '" . $hashedPassword . "', (SELECT id FROM company WHERE name = 'Green Manufacturing Co.' LIMIT 1), NOW(), NOW()),
+            ('demo.consultant@sustainable.fr', 'Sophie', 'Durand', '[\"ROLE_USER\"]'::json, '" . $hashedPassword . "', (SELECT id FROM company WHERE name = 'Sustainable Logistics' LIMIT 1), NOW(), NOW()),
+            ('demo.expert@cleanenergy.fr', 'Thomas', 'Leroy', '[\"ROLE_USER\"]'::json, '" . $hashedPassword . "', (SELECT id FROM company WHERE name = 'CleanEnergy Corp' LIMIT 1), NOW(), NOW())
+        ");
 
         // Insertion des évaluations carbone
         $this->addSql("INSERT INTO carbon_assessment (name, description, assessment_date, status, company_id) VALUES 
