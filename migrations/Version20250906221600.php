@@ -49,11 +49,11 @@ final class Version20250906221600 extends AbstractMigration
         ");
 
         // Insertion des évaluations carbone
-        $this->addSql("INSERT INTO carbon_assessment (name, description, assessment_date, status, company_id) VALUES 
-            ('Bilan Carbone 2023 - EcoTech Solutions', 'Évaluation complète des émissions GES pour l''année 2023', NOW() - INTERVAL '2 MONTH', 'published', (SELECT id FROM company WHERE name = 'EcoTech Solutions' LIMIT 1)),
-            ('Audit Carbone Q4 2023 - Green Manufacturing', 'Audit trimestriel des émissions de la production', NOW() - INTERVAL '1 MONTH', 'published', (SELECT id FROM company WHERE name = 'Green Manufacturing Co.' LIMIT 1)),
-            ('Bilan Carbone Transport 2023 - Sustainable Logistics', 'Analyse des émissions liées au transport et à la logistique', NOW() - INTERVAL '21 DAY', 'draft', (SELECT id FROM company WHERE name = 'Sustainable Logistics' LIMIT 1)),
-            ('Évaluation Carbone 2024 - CleanEnergy Corp', 'Bilan carbone préliminaire pour 2024', NOW() - INTERVAL '7 DAY', 'draft', (SELECT id FROM company WHERE name = 'CleanEnergy Corp' LIMIT 1))
+        $this->addSql("INSERT INTO carbon_assessment (name, description, assessment_date, status, company_id, created_at, updated_at) VALUES 
+            ('Bilan Carbone 2023 - EcoTech Solutions', 'Évaluation complète des émissions GES pour l''année 2023', NOW() - INTERVAL '2 MONTH', 'published', (SELECT id FROM company WHERE name = 'EcoTech Solutions' LIMIT 1), NOW(), NOW()),
+            ('Audit Carbone Q4 2023 - Green Manufacturing', 'Audit trimestriel des émissions de la production', NOW() - INTERVAL '1 MONTH', 'published', (SELECT id FROM company WHERE name = 'Green Manufacturing Co.' LIMIT 1), NOW(), NOW()),
+            ('Bilan Carbone Transport 2023 - Sustainable Logistics', 'Analyse des émissions liées au transport et à la logistique', NOW() - INTERVAL '21 DAY', 'draft', (SELECT id FROM company WHERE name = 'Sustainable Logistics' LIMIT 1), NOW(), NOW()),
+            ('Évaluation Carbone 2024 - CleanEnergy Corp', 'Bilan carbone préliminaire pour 2024', NOW() - INTERVAL '7 DAY', 'draft', (SELECT id FROM company WHERE name = 'CleanEnergy Corp' LIMIT 1), NOW(), NOW())
         ");
 
         // Insertion des émissions pour EcoTech Solutions
