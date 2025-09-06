@@ -48,21 +48,6 @@ jobs:
             --name piloteco-back \
             --settings MIGRATE_DB=true
 
-      # Chargement des données de démonstration (conditionnel)
-      - name: Load demo data
-        if: ${{ vars.LOAD_DEMO_DATA == 'true' }}
-        run: |
-          echo "🎭 Chargement des données de démonstration..."
-          
-          # Exécuter la commande via l'API Kudu d'Azure
-          curl -X POST \
-            -u '${{ secrets.AZURE_PUBLISH_USERNAME }}:${{ secrets.AZURE_PUBLISH_PASSWORD }}' \
-            -H "Content-Type: application/json" \
-            -d '{"command":"cd /home/site/wwwroot && php bin/console app:load-demo-data --force --no-interaction", "dir":"/home/site/wwwroot"}' \
-            "https://piloteco-back.scm.azurewebsites.net/api/command"
-          
-          echo "✅ Données de démonstration chargées avec succès"
-
       # Nettoyage du cache après déploiement
       - name: Clear application cache
         run: |
