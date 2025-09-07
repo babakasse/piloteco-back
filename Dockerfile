@@ -34,6 +34,7 @@ RUN set -eux; \
         opcache \
         zip \
         pdo_pgsql \
+        pgsql \
     ;
 
 ###> recipes ###
@@ -41,7 +42,9 @@ RUN set -eux; \
 
 COPY --link frankenphp/conf.d/app.ini $PHP_INI_DIR/conf.d/
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
-COPY --link frankenphp/Caddyfile /etc/caddy/Caddyfile
+# Copier les deux Caddyfiles pour les avoir disponibles dans l'image
+COPY --link frankenphp/Caddyfile.dev /etc/caddy/Caddyfile.dev
+COPY --link frankenphp/Caddyfile.prod /etc/caddy/Caddyfile.prod
 
 ENTRYPOINT ["docker-entrypoint"]
 
@@ -60,6 +63,9 @@ FROM frankenphp_base AS frankenphp_dev
 ENV APP_ENV=dev XDEBUG_MODE=off
 VOLUME /app/var/
 
+# Utiliser le Caddyfile de développement
+RUN cp /etc/caddy/Caddyfile.dev /etc/caddy/Caddyfile
+
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
 
 RUN set -eux; \
@@ -76,6 +82,9 @@ FROM frankenphp_base AS frankenphp_prod
 
 ENV APP_ENV=prod
 ENV FRANKENPHP_CONFIG="import worker.Caddyfile"
+
+# Utiliser le Caddyfile de production
+RUN cp /etc/caddy/Caddyfile.prod /etc/caddy/Caddyfile
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
