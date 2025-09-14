@@ -6,6 +6,7 @@ use App\Entity\CarbonAssessment;
 use App\Repository\CarbonAssessmentRepository;
 use App\Repository\CompanyRepository;
 use App\Service\EmissionCalculationService;
+use App\Service\AssessmentService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,7 +25,8 @@ class AssessmentController extends AbstractController
         private readonly ValidatorInterface $validator,
         private readonly CarbonAssessmentRepository $assessmentRepository,
         private readonly CompanyRepository $companyRepository,
-        private readonly EmissionCalculationService $calculationService
+        private readonly EmissionCalculationService $calculationService,
+        private readonly AssessmentService $assessmentService
     ) {
     }
 
@@ -39,12 +41,7 @@ class AssessmentController extends AbstractController
         }
 
         $year = $request->query->get('year');
-
-        if ($year) {
-            $assessments = $this->assessmentRepository->findByCompanyAndYear($company->getId(), (int) $year);
-        } else {
-            $assessments = $this->assessmentRepository->findByCompany($company->getId());
-        }
+        $assessments = $this->assessmentService->getAssessmentsForCompany($company, $year ? (int)$year : null);
 
         return $this->json(
             $assessments,
@@ -64,15 +61,10 @@ class AssessmentController extends AbstractController
             return $this->json(['error' => 'User does not belong to a company'], Response::HTTP_BAD_REQUEST);
         }
 
-        $assessment = $this->assessmentRepository->find($id);
+        $assessment = $this->assessmentService->getAssessmentForCompanyById($company, $id);
 
         if (!$assessment) {
-            return $this->json(['error' => 'Assessment not found'], Response::HTTP_NOT_FOUND);
-        }
-
-        // Check if the assessment belongs to the user's company
-        if ($assessment->getCompany()->getId() !== $company->getId()) {
-            return $this->json(['error' => 'Access denied to this assessment'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Assessment not found or access denied'], Response::HTTP_NOT_FOUND);
         }
 
         return $this->json(
@@ -94,17 +86,7 @@ class AssessmentController extends AbstractController
         }
 
         $data = json_decode($request->getContent(), true);
-
-        $assessment = new CarbonAssessment();
-        $assessment->setName($data['name'] ?? 'Carbon Assessment');
-        $assessment->setDescription($data['description'] ?? null);
-        $assessment->setCompany($company);
-
-        if (isset($data['assessmentDate'])) {
-            $assessment->setAssessmentDate(new \DateTime($data['assessmentDate']));
-        }
-
-        $assessment->setStatus($data['status'] ?? 'draft');
+        $assessment = $this->assessmentService->createAssessment($company, $data);
 
         // Validate the assessment
         $violations = $this->validator->validate($assessment);
@@ -154,15 +136,10 @@ class AssessmentController extends AbstractController
             return $this->json(['error' => 'User does not belong to a company'], Response::HTTP_BAD_REQUEST);
         }
 
-        $assessment = $this->assessmentRepository->find($id);
+        $assessment = $this->assessmentService->getAssessmentForCompanyById($company, $id);
 
         if (!$assessment) {
-            return $this->json(['error' => 'Assessment not found'], Response::HTTP_NOT_FOUND);
-        }
-
-        // Check if the assessment belongs to the user's company
-        if ($assessment->getCompany()->getId() !== $company->getId()) {
-            return $this->json(['error' => 'Access denied to this assessment'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Assessment not found or access denied'], Response::HTTP_NOT_FOUND);
         }
 
         return $this->json(
@@ -183,15 +160,10 @@ class AssessmentController extends AbstractController
             return $this->json(['error' => 'User does not belong to a company'], Response::HTTP_BAD_REQUEST);
         }
 
-        $assessment = $this->assessmentRepository->find($id);
+        $assessment = $this->assessmentService->getAssessmentForCompanyById($company, $id);
 
         if (!$assessment) {
-            return $this->json(['error' => 'Assessment not found'], Response::HTTP_NOT_FOUND);
-        }
-
-        // Check if the assessment belongs to the user's company
-        if ($assessment->getCompany()->getId() !== $company->getId()) {
-            return $this->json(['error' => 'Access denied to this assessment'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Assessment not found or access denied'], Response::HTTP_NOT_FOUND);
         }
 
         // Récupérer le résumé avec les calculs
@@ -222,5 +194,66 @@ class AssessmentController extends AbstractController
 
         return $this->json($summary, Response::HTTP_OK);
     }
-}
 
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function latestAssessment(): JsonResponse
+    {
+        $user = $this->getUser();
+        $company = $user->getCompany();
+
+        if (!$company) {
+            return $this->json(['error' => 'User does not belong to a company'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $latest = $this->assessmentService->getLatestAssessmentForCompany($company);
+
+        if (!$latest) {
+            return $this->json(['error' => 'No assessment found'], Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->json(
+            $latest,
+            Response::HTTP_OK,
+            [],
+            ['groups' => 'carbon_assessment:read']
+        );
+    }
+
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateAssessment(Request $request, int $id): JsonResponse
+    {
+        $user = $this->getUser();
+        $company = $user->getCompany();
+
+        if (!$company) {
+            return $this->json(['error' => 'User does not belong to a company'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $assessment = $this->assessmentService->getAssessmentForCompanyById($company, $id);
+        if (!$assessment) {
+            return $this->json(['error' => 'Assessment not found or access denied'], Response::HTTP_NOT_FOUND);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $this->assessmentService->updateAssessment($assessment, $data);
+
+        // Validation
+        $violations = $this->validator->validate($assessment);
+        if (count($violations) > 0) {
+            $errors = [];
+            foreach ($violations as $violation) {
+                $errors[$violation->getPropertyPath()] = $violation->getMessage();
+            }
+            return $this->json(['error' => 'Validation failed', 'details' => $errors], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->entityManager->flush();
+
+        return $this->json(
+            $assessment,
+            Response::HTTP_OK,
+            [],
+            ['groups' => 'carbon_assessment:read']
+        );
+    }
+}
