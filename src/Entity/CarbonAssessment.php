@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Patch;
 use App\Controller\AssessmentController;
 use App\Repository\CarbonAssessmentRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -40,6 +41,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/assessment/{id}/summary',
             controller: AssessmentController::class . '::getAssessmentSummary',
             name: 'app_get_assessment_summary'
+        ),
+        new Get(
+            uriTemplate: '/assessment/latest',
+            controller: AssessmentController::class . '::latestAssessment',
+            name: 'app_get_assessment_latest'
+        ),
+        new Patch(
+            uriTemplate: '/assessment/{id}',
+            controller: AssessmentController::class . '::updateAssessment',
+            name: 'app_update_assessment'
         )
     ],
     normalizationContext: ['groups' => ['carbon_assessment:read']],
@@ -161,6 +172,12 @@ class CarbonAssessment
     public function getYear(): ?int
     {
         return $this->year;
+    }
+
+    public function setYear(?int $year): CarbonAssessment
+    {
+        $this->year = $year;
+        return $this;
     }
 
     public function getTotalEmissions(): ?float
