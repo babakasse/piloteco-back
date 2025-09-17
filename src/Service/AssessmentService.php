@@ -59,6 +59,7 @@ class AssessmentService
             $assessment->setAssessmentDate(new \DateTime($data['assessmentDate']));
         }
         $assessment->setStatus($data['status'] ?? 'draft');
+        $assessment->setYear((int)$data['year'] ?? null);
         return $assessment;
     }
 
