@@ -11,7 +11,7 @@ SYMFONY  = $(PHP) bin/console
 
 # Misc
 .DEFAULT_GOAL = help
-.PHONY        : help build up start down logs sh composer vendor sf cc test
+.PHONY        : help build up start down reset logs sh composer vendor sf cc test
 
 ## —— 🎵 🐳 The Symfony Docker Makefile 🐳 🎵 ——————————————————————————————————
 help: ## Outputs this help screen
@@ -28,6 +28,12 @@ start: build up ## Build and start the containers
 
 down: ## Stop the docker hub
 	@$(DOCKER_COMP) down --remove-orphans
+
+reset: ## Reset everything (stop containers, remove volumes, images, and clean cache)
+	@echo "⚠️  This will remove all containers, volumes, images, and cache files!"
+	@$(DOCKER_COMP) down --volumes --remove-orphans
+	@docker rmi -f app-php 2>/dev/null || true
+	@echo "✅ Reset complete! Run 'make start' to rebuild."
 
 logs: ## Show live logs
 	@$(DOCKER_COMP) logs --tail=0 --follow
