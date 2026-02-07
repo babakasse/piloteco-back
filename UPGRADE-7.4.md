@@ -72,16 +72,18 @@ composer clear-cache
 
 ```bash
 # Mettre à jour uniquement Symfony d'abord
-composer update "symfony/*" --with-all-dependencies
+composer update "symfony/*" --with-all-dependencies --ignore-platform-req=ext-redis
 
 # Puis mettre à jour les autres dépendances
 composer update
 ```
 
+**Note importante sur ext-redis** : Symfony 7.4 cache requiert `ext-redis >= 6.1`, mais si votre environnement utilise une version antérieure (par exemple 5.3.7), utilisez l'option `--ignore-platform-req=ext-redis` lors de la mise à jour. Cette extension est uniquement requise si vous utilisez le cache Redis de Symfony.
+
 #### Option B : Mise à jour complète (plus rapide mais plus risquée)
 
 ```bash
-composer update
+composer update --ignore-platform-req=ext-redis
 ```
 
 ### Étape 6 : Mettre à jour les recettes Symfony
