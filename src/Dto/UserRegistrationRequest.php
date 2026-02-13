@@ -28,9 +28,7 @@ class UserRegistrationRequest
      */
     private string $lastName;
 
-    /**
-     * @Assert\NotBlank(message="Password is required")
-     */
+    #[Assert\NotBlank(message: "Password is required")]
     #[PasswordComplexity]
     private string $plainPassword;
 
