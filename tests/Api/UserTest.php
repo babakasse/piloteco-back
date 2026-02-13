@@ -43,7 +43,7 @@ class UserTest extends ApiTestCase
 
         // Create a user with a unique email using a timestamp
         $user = new User();
-        $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
+        $hashedPassword = $this->passwordHasher->hashPassword($user, 'Password123!');
         $user->setPassword($hashedPassword);
         $user->setEmail('test-user-api-' . uniqid() . '@example.com')
             ->setFirstName('Test')
@@ -61,7 +61,7 @@ class UserTest extends ApiTestCase
         $response = $client->request('POST', '/login', [
             'json' => [
                 'email' => $this->user->getEmail(),
-                'password' => 'password123'
+                'password' => 'Password123!'
             ]
         ]);
 
@@ -83,7 +83,7 @@ class UserTest extends ApiTestCase
                 'email' => 'testuser-' . uniqid() . '@example.com',
                 'firstName' => 'John',
                 'lastName' => 'Doe',
-                'plainPassword' => 'securepassword',
+                'plainPassword' => 'SecurePass123!',
                 'roles' => ['ROLE_USER'],
                 'company' => '/companies/' . $this->company->getId()
             ],

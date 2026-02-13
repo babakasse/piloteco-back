@@ -2,6 +2,7 @@
 
 namespace App\Dto;
 
+use App\Validator\PasswordComplexity;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -27,10 +28,8 @@ class UserRegistrationRequest
      */
     private string $lastName;
 
-    /**
-     * @Assert\NotBlank(message="Password is required")
-     * @Assert\Length(min=8, minMessage="Password must be at least {{ limit }} characters long")
-     */
+    #[Assert\NotBlank(message: "Password is required")]
+    #[PasswordComplexity]
     private string $plainPassword;
 
     public function getEmail(): string

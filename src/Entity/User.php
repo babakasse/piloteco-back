@@ -16,6 +16,7 @@ use App\Controller\RegisterController;
 use Doctrine\ORM\Mapping as ORM;
 use App\Repository\UserRepository;
 use App\State\UserPasswordHasher;
+use App\Validator\PasswordComplexity;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -71,6 +72,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $password = null;
 
     #[Assert\NotBlank(groups: ['user:create'])]
+    #[PasswordComplexity]
     #[Groups(['user:create', 'user:update'])]
     private ?string $plainPassword = null;
 

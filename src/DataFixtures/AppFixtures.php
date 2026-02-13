@@ -48,7 +48,7 @@ class AppFixtures extends Fixture
                 ->setCompany($companies[($i - 1) % count($companies)]); // Distribution équitable
 
             // Hash password
-            $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
+            $hashedPassword = $this->passwordHasher->hashPassword($user, 'Password123!');
             $user->setPassword($hashedPassword);
 
             $manager->persist($user);
@@ -63,7 +63,7 @@ class AppFixtures extends Fixture
             ->setCompany($companies[0]); // Première company
 
         // Hash password
-        $hashedPassword = $this->passwordHasher->hashPassword($adminUser, 'password123');
+        $hashedPassword = $this->passwordHasher->hashPassword($adminUser, 'Password123!');
         $adminUser->setPassword($hashedPassword);
 
         $manager->persist($adminUser);

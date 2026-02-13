@@ -44,7 +44,7 @@ class CarbonAssessmentTest extends ApiTestCase
 
         // Create a user with a unique email using a timestamp
         $user = new User();
-        $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
+        $hashedPassword = $this->passwordHasher->hashPassword($user, 'Password123!');
         $user->setPassword($hashedPassword);
         $user->setEmail('test-api-' . uniqid() . '@example.com')
             ->setFirstName('Test')
@@ -63,7 +63,7 @@ class CarbonAssessmentTest extends ApiTestCase
         $response = $client->request('POST', '/login', [
             'json' => [
                 'email' => $this->user->getEmail(),
-                'password' => 'password123'
+                'password' => 'Password123!'
             ]
         ]);
 

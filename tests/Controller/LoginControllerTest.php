@@ -14,7 +14,7 @@ class LoginControllerTest extends ApiTestCase
         $response = $client->request('POST', '/login', [
             'json' => [
                 'email' => 'admin@example.com',
-                'password' => 'password123',
+                'password' => 'Password123!',
             ],
         ]);
 
