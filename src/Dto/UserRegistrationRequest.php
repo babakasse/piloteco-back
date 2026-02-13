@@ -30,7 +30,6 @@ class UserRegistrationRequest
 
     /**
      * @Assert\NotBlank(message="Password is required")
-     * @Assert\Length(min=8, minMessage="Password must be at least {{ limit }} characters long")
      */
     #[PasswordComplexity]
     private string $plainPassword;
