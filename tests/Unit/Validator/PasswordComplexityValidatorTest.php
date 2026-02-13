@@ -159,10 +159,14 @@ class PasswordComplexityValidatorTest extends TestCase
         ];
         
         foreach ($validPasswords as $password) {
-            $this->context->expects($this->never())
+            // Create a fresh context for each password test
+            $context = $this->createMock(ExecutionContextInterface::class);
+            $context->expects($this->never())
                 ->method('buildViolation');
             
-            $this->validator->validate($password, $constraint);
+            $validator = new PasswordComplexityValidator();
+            $validator->initialize($context);
+            $validator->validate($password, $constraint);
         }
     }
 }
