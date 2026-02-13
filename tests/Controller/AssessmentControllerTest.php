@@ -47,7 +47,7 @@ class AssessmentControllerTest extends ApiTestCase
 
         // Create a user with a unique email
         $user = new User();
-        $hashedPassword = $this->passwordHasher->hashPassword($user, 'password123');
+        $hashedPassword = $this->passwordHasher->hashPassword($user, 'Password123!');
         $user->setPassword($hashedPassword);
         $user->setEmail('test-controller-' . uniqid() . '@example.com')
             ->setFirstName('Test')
@@ -75,7 +75,7 @@ class AssessmentControllerTest extends ApiTestCase
         $response = $this->client->request('POST', '/login', [
             'json' => [
                 'email' => $this->user->getEmail(),
-                'password' => 'password123'
+                'password' => 'Password123!'
             ]
         ]);
 
