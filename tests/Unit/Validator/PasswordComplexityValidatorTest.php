@@ -146,27 +146,27 @@ class PasswordComplexityValidatorTest extends TestCase
         $this->validator->validate('', $constraint);
     }
 
-    public function testVariousValidPasswords(): void
+    /**
+     * @dataProvider validPasswordProvider
+     */
+    public function testVariousValidPasswords(string $password): void
     {
         $constraint = new PasswordComplexity();
         
-        $validPasswords = [
-            'Abcdefg1!',
-            'SecureP@ss123',
-            'MyP@ssw0rd',
-            'Test123!@#',
-            'C0mpl3x!Pass',
-        ];
+        $this->context->expects($this->never())
+            ->method('buildViolation');
         
-        foreach ($validPasswords as $password) {
-            // Create a fresh context for each password test
-            $context = $this->createMock(ExecutionContextInterface::class);
-            $context->expects($this->never())
-                ->method('buildViolation');
-            
-            $validator = new PasswordComplexityValidator();
-            $validator->initialize($context);
-            $validator->validate($password, $constraint);
-        }
+        $this->validator->validate($password, $constraint);
+    }
+    
+    public static function validPasswordProvider(): array
+    {
+        return [
+            'minimum valid password' => ['Abcdefg1!'],
+            'password with multiple special chars' => ['SecureP@ss123'],
+            'password with @ symbol' => ['MyP@ssw0rd'],
+            'password with multiple special chars at end' => ['Test123!@#'],
+            'complex password with numbers' => ['C0mpl3x!Pass'],
+        ];
     }
 }
