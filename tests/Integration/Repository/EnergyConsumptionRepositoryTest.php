@@ -157,4 +157,57 @@ class EnergyConsumptionRepositoryTest extends KernelTestCase
         $this->assertNotNull($result);
         $this->assertSame(100_000.0, $result->getTotalSurfaceQuantityConsumed());
     }
+
+    // ── Multi-country filter tests ─────────────────────────────────────────────
+
+    public function testSumByMonthRangeFiltersBySingleCountryCode(): void
+    {
+        $results = $this->repository->sumByMonthRangeAndResource('ELEC', '2024-01', '2024-01', ['FR']);
+        $codes = array_column($results, 'site_unique_code');
+
+        $this->assertContains("{$this->prefix}_FR_001", $codes);
+        $this->assertNotContains("{$this->prefix}_ES_001", $codes);
+    }
+
+    public function testSumByMonthRangeFiltersMultipleCountryCodes(): void
+    {
+        // Both FR and ES are in the filter → both returned
+        $results = $this->repository->sumByMonthRangeAndResource('ELEC', '2024-01', '2024-01', ['FR', 'ES']);
+        $codes = array_column($results, 'site_unique_code');
+
+        $this->assertContains("{$this->prefix}_FR_001", $codes);
+        $this->assertContains("{$this->prefix}_ES_001", $codes);
+    }
+
+    public function testSumByMonthRangeWithEmptyCountryCodesReturnsAll(): void
+    {
+        // null = no filter → all countries
+        $results = $this->repository->sumByMonthRangeAndResource('ELEC', '2024-01', '2024-01', null);
+        $codes = array_column($results, 'site_unique_code');
+
+        $this->assertContains("{$this->prefix}_FR_001", $codes);
+        $this->assertContains("{$this->prefix}_ES_001", $codes);
+    }
+
+    public function testSumByMonthRangeWithUnknownCountryReturnsNothing(): void
+    {
+        $results = $this->repository->sumByMonthRangeAndResource('ELEC', '2024-01', '2024-01', ['ZZ']);
+
+        $codes = array_column($results, 'site_unique_code');
+        $this->assertNotContains("{$this->prefix}_FR_001", $codes);
+        $this->assertNotContains("{$this->prefix}_ES_001", $codes);
+    }
+
+    public function testMonthlyTotalsFiltersByMultipleCountryCodes(): void
+    {
+        // Only FR → ES data excluded
+        $resultsFr = $this->repository->monthlyTotals('ELEC', '2024-01', '2024-12', ['FR']);
+        $totalFr = array_sum(array_column($resultsFr, 'total'));
+
+        // Both countries → higher total
+        $resultsBoth = $this->repository->monthlyTotals('ELEC', '2024-01', '2024-12', ['FR', 'ES']);
+        $totalBoth = array_sum(array_column($resultsBoth, 'total'));
+
+        $this->assertGreaterThan($totalFr, $totalBoth, 'Adding ES to filter must increase total consumption');
+    }
 }

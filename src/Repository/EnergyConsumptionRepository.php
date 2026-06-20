@@ -24,11 +24,15 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
      *
      * @return array<array{site_unique_code: string, country_code: string, total: float}>
      */
+    /**
+     * @param list<string>|null $countryCodes
+     * @return array<array{site_unique_code: string, country_code: string, total: float}>
+     */
     public function sumByMonthRangeAndResource(
         string $resourceCategory,
         string $monthFrom,
         string $monthTo,
-        ?string $countryCode = null,
+        ?array $countryCodes = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
             ->select(
@@ -45,9 +49,9 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->setParameter('monthTo', $monthTo)
             ->groupBy('s.siteUniqueCode', 's.countryCode');
 
-        if ($countryCode !== null) {
-            $qb->andWhere('s.countryCode = :countryCode')
-               ->setParameter('countryCode', $countryCode);
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
         }
 
         return $qb->getQuery()->getArrayResult();
@@ -58,11 +62,17 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
      *
      * @return array<array{month_year: string, total: float}>
      */
+    /**
+     * Monthly consumption N vs N-1 for charts.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{month_year: string, total: float}>
+     */
     public function monthlyTotals(
         string $resourceCategory,
         string $yearStart,
         string $yearEnd,
-        ?string $countryCode = null,
+        ?array $countryCodes = null,
         ?string $siteUniqueCode = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
@@ -77,9 +87,9 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->groupBy('ec.monthYear')
             ->orderBy('ec.monthYear', 'ASC');
 
-        if ($countryCode !== null) {
-            $qb->andWhere('s.countryCode = :countryCode')
-               ->setParameter('countryCode', $countryCode);
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
         }
 
         if ($siteUniqueCode !== null) {

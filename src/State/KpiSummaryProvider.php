@@ -18,15 +18,36 @@ final readonly class KpiSummaryProvider implements ProviderInterface
         private EnergyKpiCalculatorService $kpiCalculatorService,
     ) {}
 
+    /**
+     * Normalize countryCodes from query string.
+     * Accepts ?countryCodes[]=FR&countryCodes[]=ES (array) or ?countryCodes=FR (single string).
+     *
+     * @param array<string, mixed> $filters
+     * @return list<string>|null  null = no filter (all countries)
+     */
+    private function resolveCountryCodes(array $filters): ?array
+    {
+        $raw = $filters['countryCodes'] ?? null;
+
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+
+        $codes = is_array($raw) ? array_values($raw) : [$raw];
+        $codes = array_filter(array_map('strtoupper', $codes));
+
+        return $codes !== [] ? array_values($codes) : null;
+    }
+
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
         $filters = $context['filters'] ?? [];
 
         $resourceCategory = strtoupper((string) ($filters['resourceCategory'] ?? 'ELEC'));
         $month = (string) ($filters['month'] ?? date('Y-m'));
-        $countryCode = ($filters['countryCode'] ?? null) ?: null;
+        $countryCodes = $this->resolveCountryCodes($filters);
 
-        $kpiData = $this->kpiCalculatorService->computeSummary($resourceCategory, $month, $countryCode);
+        $kpiData = $this->kpiCalculatorService->computeSummary($resourceCategory, $month, $countryCodes);
 
         $resource = new KpiSummaryResource();
         $resource->resourceCategory = $resourceCategory;

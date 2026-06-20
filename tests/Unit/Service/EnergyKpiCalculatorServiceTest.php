@@ -172,4 +172,86 @@ class EnergyKpiCalculatorServiceTest extends TestCase
         $this->assertCount(1, $result);
         $this->assertSame('FR_001_MAG', $result[0]['site_unique_code']);
     }
+
+    // ── Multi-country filter tests ─────────────────────────────────────────────
+
+    public function testComputeSummaryPassesCountryCodesToRepositories(): void
+    {
+        $countryCodes = ['FR', 'ES'];
+
+        $this->energyRepo->expects($this->atLeastOnce())
+            ->method('sumByMonthRangeAndResource')
+            ->with(
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $countryCodes,
+            )
+            ->willReturn([]);
+
+        $this->areaRepo->expects($this->atLeastOnce())
+            ->method('avgSalesAreaBySiteAndYear')
+            ->with($this->anything(), $countryCodes)
+            ->willReturn([]);
+
+        $this->refrigerantRepo->expects($this->atLeastOnce())
+            ->method('sumByMonthRange')
+            ->with($this->anything(), $this->anything(), $countryCodes)
+            ->willReturn([]);
+
+        $this->service->computeSummary('ELEC', '2025-01', $countryCodes);
+    }
+
+    public function testComputeMonthlyEvolutionPassesCountryCodesToRepository(): void
+    {
+        $countryCodes = ['FR', 'PL'];
+
+        $this->energyRepo->expects($this->atLeastOnce())
+            ->method('monthlyTotals')
+            ->with(
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $countryCodes,
+            )
+            ->willReturn([]);
+
+        $this->service->computeMonthlyEvolution('ELEC', 2025, $countryCodes);
+    }
+
+    public function testComputeSiteRankingPassesCountryCodesToRepositories(): void
+    {
+        $countryCodes = ['FR'];
+
+        $this->energyRepo->expects($this->atLeastOnce())
+            ->method('sumByMonthRangeAndResource')
+            ->with(
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $countryCodes,
+            )
+            ->willReturn([]);
+
+        $this->areaRepo->expects($this->atLeastOnce())
+            ->method('avgSalesAreaBySiteAndYear')
+            ->with($this->anything(), $countryCodes)
+            ->willReturn([]);
+
+        $this->service->computeSiteRanking('ELEC', '2025-01', '2025-01', 10, 'DESC', $countryCodes);
+    }
+
+    public function testComputeSummaryWithNullCountryCodesPassesNullToRepositories(): void
+    {
+        $this->energyRepo->expects($this->atLeastOnce())
+            ->method('sumByMonthRangeAndResource')
+            ->with($this->anything(), $this->anything(), $this->anything(), null)
+            ->willReturn([]);
+
+        $this->areaRepo->method('avgSalesAreaBySiteAndYear')->willReturn([]);
+        $this->refrigerantRepo->method('sumByMonthRange')->willReturn([]);
+
+        // null = all countries (no filter)
+        $this->service->computeSummary('ELEC', '2025-01', null);
+    }
 }

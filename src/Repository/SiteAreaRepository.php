@@ -45,23 +45,31 @@ class SiteAreaRepository extends ServiceEntityRepository
     }
 
     /**
-     * Average sales area per site for a given fiscal year (used for intensity KPI).
+     * Average sales area per site using the latest available fiscal year ≤ the requested year.
      *
+     * Falls back to the most recent year with data when the requested year has no records yet
+     * (e.g. 2025 intensity requests use 2024 area data if 2025 hasn't been imported).
+     *
+     * @param list<string>|null $countryCodes
      * @return array<array{site_unique_code: string, avg_sales_area: float}>
      */
-    public function avgSalesAreaBySiteAndYear(int $fiscalYear, ?string $countryCode = null): array
+    public function avgSalesAreaBySiteAndYear(int $fiscalYear, ?array $countryCodes = null): array
     {
+        // Sub-query: resolve the latest fiscal year ≤ requested year per site
+        $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
+            . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.salesAreaM2 IS NOT NULL';
+
         $qb = $this->createQueryBuilder('sa')
             ->select('s.siteUniqueCode AS site_unique_code', 'AVG(sa.salesAreaM2) AS avg_sales_area')
             ->join('sa.site', 's')
-            ->where('sa.fiscalYear = :year')
+            ->where('sa.fiscalYear = (' . $subDql . ')')
             ->andWhere('sa.salesAreaM2 IS NOT NULL')
             ->setParameter('year', $fiscalYear)
             ->groupBy('s.siteUniqueCode');
 
-        if ($countryCode !== null) {
-            $qb->andWhere('s.countryCode = :countryCode')
-               ->setParameter('countryCode', $countryCode);
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
         }
 
         return $qb->getQuery()->getArrayResult();

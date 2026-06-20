@@ -19,7 +19,7 @@ final readonly class EnergyKpiCalculatorService
     /**
      * KPI Summary for the dashboard (MTD + YTD energy intensity, N vs N-1, refrigerant total).
      *
-     * @param array<string>|null $countryCodes
+     * @param list<string>|null $countryCodes  null = all countries, [] = all countries
      * @return array{
      *   energy_intensity_mtd: float|null,
      *   energy_intensity_ytd: float|null,
@@ -33,7 +33,7 @@ final readonly class EnergyKpiCalculatorService
     public function computeSummary(
         string $resourceCategory,
         string $currentMonth,
-        ?string $countryCode = null,
+        ?array $countryCodes = null,
     ): array {
         $year = (int) substr($currentMonth, 0, 4);
         $ytdStart = sprintf('%d-01', $year);
@@ -41,21 +41,21 @@ final readonly class EnergyKpiCalculatorService
         $previousYtdStart = sprintf('%d-01', $year - 1);
 
         // MTD consumption current year
-        $mtdConsumption = $this->sumConsumption($resourceCategory, $currentMonth, $currentMonth, $countryCode);
+        $mtdConsumption = $this->sumConsumption($resourceCategory, $currentMonth, $currentMonth, $countryCodes);
 
         // YTD consumption current year
-        $ytdConsumption = $this->sumConsumption($resourceCategory, $ytdStart, $currentMonth, $countryCode);
+        $ytdConsumption = $this->sumConsumption($resourceCategory, $ytdStart, $currentMonth, $countryCodes);
 
         // MTD consumption N-1
-        $mtdConsumptionN1 = $this->sumConsumption($resourceCategory, $previousMonth, $previousMonth, $countryCode);
+        $mtdConsumptionN1 = $this->sumConsumption($resourceCategory, $previousMonth, $previousMonth, $countryCodes);
 
         // YTD consumption N-1
         $previousYtdEnd = $this->shiftMonth($currentMonth, -12);
-        $ytdConsumptionN1 = $this->sumConsumption($resourceCategory, $previousYtdStart, $previousYtdEnd, $countryCode);
+        $ytdConsumptionN1 = $this->sumConsumption($resourceCategory, $previousYtdStart, $previousYtdEnd, $countryCodes);
 
         // Sales area for intensity calculation
-        $avgSalesArea = $this->getTotalSalesArea($year, $countryCode);
-        $avgSalesAreaN1 = $this->getTotalSalesArea($year - 1, $countryCode);
+        $avgSalesArea = $this->getTotalSalesArea($year, $countryCodes);
+        $avgSalesAreaN1 = $this->getTotalSalesArea($year - 1, $countryCodes);
 
         $intensityMtd = $this->computeIntensity($mtdConsumption, $avgSalesArea);
         $intensityYtd = $this->computeIntensity($ytdConsumption, $avgSalesArea);
@@ -63,7 +63,7 @@ final readonly class EnergyKpiCalculatorService
         $intensityYtdN1 = $this->computeIntensity($ytdConsumptionN1, $avgSalesAreaN1);
 
         // Refrigerant YTD
-        $refrigerantYtd = $this->sumRefrigerant($ytdStart, $currentMonth, $countryCode);
+        $refrigerantYtd = $this->sumRefrigerant($ytdStart, $currentMonth, $countryCodes);
 
         return [
             'energy_intensity_mtd' => $intensityMtd,
@@ -79,12 +79,13 @@ final readonly class EnergyKpiCalculatorService
     /**
      * Monthly data for N vs N-1 bar chart.
      *
+     * @param list<string>|null $countryCodes
      * @return array<array{month: string, current: float|null, previous: float|null}>
      */
     public function computeMonthlyEvolution(
         string $resourceCategory,
         int $year,
-        ?string $countryCode = null,
+        ?array $countryCodes = null,
     ): array {
         $currentYearStart = sprintf('%d-01', $year);
         $currentYearEnd = sprintf('%d-12', $year);
@@ -92,10 +93,10 @@ final readonly class EnergyKpiCalculatorService
         $previousYearEnd = sprintf('%d-12', $year - 1);
 
         $currentRows = $this->energyConsumptionRepository->monthlyTotals(
-            $resourceCategory, $currentYearStart, $currentYearEnd, $countryCode,
+            $resourceCategory, $currentYearStart, $currentYearEnd, $countryCodes,
         );
         $previousRows = $this->energyConsumptionRepository->monthlyTotals(
-            $resourceCategory, $previousYearStart, $previousYearEnd, $countryCode,
+            $resourceCategory, $previousYearStart, $previousYearEnd, $countryCodes,
         );
 
         $currentByMonth = array_column($currentRows, 'total', 'month_year');
@@ -118,6 +119,7 @@ final readonly class EnergyKpiCalculatorService
     /**
      * Top/Flop N sites by energy intensity.
      *
+     * @param list<string>|null $countryCodes
      * @return array<array{rank: int, site_unique_code: string, country_code: string, intensity: float, evolution_percent: float|null}>
      */
     public function computeSiteRanking(
@@ -126,20 +128,20 @@ final readonly class EnergyKpiCalculatorService
         string $monthTo,
         int $limit = 10,
         string $order = 'DESC',
-        ?string $countryCode = null,
+        ?array $countryCodes = null,
     ): array {
         $year = (int) substr($monthTo, 0, 4);
         $previousMonthFrom = $this->shiftMonth($monthFrom, -12);
         $previousMonthTo = $this->shiftMonth($monthTo, -12);
 
         $consumptions = $this->energyConsumptionRepository->sumByMonthRangeAndResource(
-            $resourceCategory, $monthFrom, $monthTo, $countryCode,
+            $resourceCategory, $monthFrom, $monthTo, $countryCodes,
         );
         $consumptionsN1 = $this->energyConsumptionRepository->sumByMonthRangeAndResource(
-            $resourceCategory, $previousMonthFrom, $previousMonthTo, $countryCode,
+            $resourceCategory, $previousMonthFrom, $previousMonthTo, $countryCodes,
         );
-        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCode);
-        $areasN1 = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year - 1, $countryCode);
+        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes);
+        $areasN1 = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year - 1, $countryCodes);
 
         $consumptionBySite = array_column($consumptions, 'total', 'site_unique_code');
         $consumptionN1BySite = array_column($consumptionsN1, 'total', 'site_unique_code');
@@ -184,14 +186,17 @@ final readonly class EnergyKpiCalculatorService
         );
     }
 
+    /**
+     * @param list<string>|null $countryCodes
+     */
     private function sumConsumption(
         string $resourceCategory,
         string $monthFrom,
         string $monthTo,
-        ?string $countryCode,
+        ?array $countryCodes,
     ): ?float {
         $rows = $this->energyConsumptionRepository->sumByMonthRangeAndResource(
-            $resourceCategory, $monthFrom, $monthTo, $countryCode,
+            $resourceCategory, $monthFrom, $monthTo, $countryCodes,
         );
 
         if (empty($rows)) {
@@ -201,9 +206,12 @@ final readonly class EnergyKpiCalculatorService
         return (float) array_sum(array_column($rows, 'total'));
     }
 
-    private function getTotalSalesArea(int $year, ?string $countryCode): ?float
+    /**
+     * @param list<string>|null $countryCodes
+     */
+    private function getTotalSalesArea(int $year, ?array $countryCodes): ?float
     {
-        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCode);
+        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes);
 
         if (empty($areas)) {
             return null;
@@ -212,9 +220,12 @@ final readonly class EnergyKpiCalculatorService
         return (float) array_sum(array_column($areas, 'avg_sales_area'));
     }
 
-    private function sumRefrigerant(string $monthFrom, string $monthTo, ?string $countryCode): ?float
+    /**
+     * @param list<string>|null $countryCodes
+     */
+    private function sumRefrigerant(string $monthFrom, string $monthTo, ?array $countryCodes): ?float
     {
-        $rows = $this->refrigerantFluidRepository->sumByMonthRange($monthFrom, $monthTo, $countryCode);
+        $rows = $this->refrigerantFluidRepository->sumByMonthRange($monthFrom, $monthTo, $countryCodes);
 
         if (empty($rows)) {
             return null;

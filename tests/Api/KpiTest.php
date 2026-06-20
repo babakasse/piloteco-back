@@ -307,4 +307,143 @@ class KpiTest extends ApiTestCase
             );
         }
     }
+
+    // ── Multi-country filter tests (countryCodes[]) ────────────────────────────
+
+    public function testKpiSummaryFiltersBySingleCountryCode(): void
+    {
+        // Approach: FR alone < FR+ES combined — proves the filter reduces the scope
+        $client = static::createClient();
+        $headers = [
+            'Authorization' => 'Bearer ' . self::$token,
+            'Accept' => 'application/json',
+        ];
+
+        $client->request('GET', '/kpi/summary?' . http_build_query([
+            'resourceCategory' => 'ELEC',
+            'month' => '2024-01',
+            'countryCodes' => ['FR'],
+        ]), ['headers' => $headers]);
+        $this->assertResponseIsSuccessful();
+        $frData = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $frTotal = (float) ($frData[0]['totalConsumptionMtd'] ?? 0);
+
+        $client->request('GET', '/kpi/summary?' . http_build_query([
+            'resourceCategory' => 'ELEC',
+            'month' => '2024-01',
+            'countryCodes' => ['FR', 'ES'],
+        ]), ['headers' => $headers]);
+        $this->assertResponseIsSuccessful();
+        $bothData = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $bothTotal = (float) ($bothData[0]['totalConsumptionMtd'] ?? 0);
+
+        $this->assertGreaterThan(
+            $frTotal,
+            $bothTotal,
+            'Adding ES to the country filter must increase total consumption',
+        );
+    }
+
+    public function testKpiSummaryFiltersMultipleCountryCodes(): void
+    {
+        // FR + ES → total must equal sum of both fixtures (100k + 80k = 180k)
+        static::createClient()->request(
+            'GET',
+            '/kpi/summary?' . http_build_query([
+                'resourceCategory' => 'ELEC',
+                'month' => '2024-01',
+                'countryCodes' => ['FR', 'ES'],
+            ]),
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertNotEmpty($data);
+        $this->assertArrayHasKey('totalConsumptionMtd', $data[0]);
+        // FR (100k) + ES (80k) = 180k minimum (other test runs may have added sites)
+        $this->assertGreaterThanOrEqual(180_000.0, (float) $data[0]['totalConsumptionMtd']);
+    }
+
+    public function testKpiSummaryWithNoCountryCodesReturnsAll(): void
+    {
+        // No filter → must include both FR and ES (total >= 180k)
+        static::createClient()->request('GET', '/kpi/summary?resourceCategory=ELEC&month=2024-01', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . self::$token,
+                'Accept' => 'application/json',
+            ],
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertNotEmpty($data);
+        $this->assertGreaterThanOrEqual(180_000.0, (float) $data[0]['totalConsumptionMtd']);
+    }
+
+    public function testSiteRankingFiltersBySingleCountryCode(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/site-ranking?' . http_build_query([
+                'resourceCategory' => 'ELEC',
+                'month' => '2024-01',
+                'countryCodes' => ['FR'],
+                'limit' => 50,
+            ]),
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $countryCodes = array_column($data, 'countryCode');
+
+        // All returned sites must be French
+        foreach ($countryCodes as $code) {
+            $this->assertSame('FR', $code, "Expected only FR sites, got: {$code}");
+        }
+    }
+
+    public function testMonthlyEvolutionFiltersMultipleCountryCodes(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/monthly-evolution?' . http_build_query([
+                'resourceCategory' => 'ELEC',
+                'year' => 2024,
+                'countryCodes' => ['FR', 'ES'],
+            ]),
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertCount(12, $data, 'Monthly evolution must always return 12 months regardless of filter');
+
+        // Jan must have current data (both FR and ES have 2024-01 fixtures)
+        $jan = array_values(array_filter($data, fn (array $m) => $m['month'] === '2024-01'));
+        $this->assertNotEmpty($jan);
+        $this->assertArrayHasKey('current', $jan[0]);
+        // FR (100k) + ES (80k) = 180k minimum
+        $this->assertGreaterThanOrEqual(180_000.0, (float) $jan[0]['current']);
+    }
 }
