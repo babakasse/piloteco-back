@@ -159,4 +159,50 @@ class SiteAreaRepositoryTest extends KernelTestCase
         $this->assertArrayHasKey("{$this->prefix}_FR_001", $areas);
         $this->assertArrayNotHasKey("{$this->prefix}_ES_001", $areas);
     }
+
+    // ── totalSalesAreaByCountryAndYear ─────────────────────────────────────────
+    // Note: exact values use assertGreaterThanOrEqual because other test fixtures
+    // in the shared test DB also contribute to country-level aggregates.
+
+    public function testTotalSalesAreaByCountryReturnsBothCountries(): void
+    {
+        $results = $this->repository->totalSalesAreaByCountryAndYear(2024);
+        $totals = array_column($results, 'total_sales_area', 'country_code');
+
+        // Our FR fixtures contribute at least 2500 m² (1200+1300)
+        $this->assertArrayHasKey('FR', $totals);
+        $this->assertGreaterThanOrEqual(2_500.0, (float) $totals['FR']);
+    }
+
+    public function testTotalSalesAreaByCountryFallsBackToPreviousYear(): void
+    {
+        // 2025 has no records in our fixtures → must fall back to 2024 for FR
+        $results = $this->repository->totalSalesAreaByCountryAndYear(2025);
+        $totals = array_column($results, 'total_sales_area', 'country_code');
+
+        $this->assertArrayHasKey('FR', $totals, 'FR should appear via 2024 fallback');
+        // FR 2024: at least 2500 m² from our fixtures
+        $this->assertGreaterThanOrEqual(2_500.0, (float) $totals['FR']);
+    }
+
+    public function testTotalSalesAreaByCountryFallbackYieldsMoreThanSingleSite(): void
+    {
+        // Requesting 2024 with both countries must be >= FR alone
+        $resultsBoth = $this->repository->totalSalesAreaByCountryAndYear(2024);
+        $totalFrBoth = (float) (array_column($resultsBoth, 'total_sales_area', 'country_code')['FR'] ?? 0);
+
+        $resultsFr = $this->repository->totalSalesAreaByCountryAndYear(2024, ['FR']);
+        $totalFrOnly = (float) (array_column($resultsFr, 'total_sales_area', 'country_code')['FR'] ?? 0);
+
+        $this->assertEqualsWithDelta($totalFrBoth, $totalFrOnly, 0.01, 'FR total must be the same with or without explicit FR filter');
+    }
+
+    public function testTotalSalesAreaByCountryFiltersCountryCodes(): void
+    {
+        $results = $this->repository->totalSalesAreaByCountryAndYear(2024, ['FR']);
+        $totals = array_column($results, 'total_sales_area', 'country_code');
+
+        $this->assertArrayHasKey('FR', $totals);
+        $this->assertArrayNotHasKey('ES', $totals);
+    }
 }

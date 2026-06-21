@@ -19,6 +19,33 @@ class SiteAreaRepository extends ServiceEntityRepository
         parent::__construct($registry, SiteArea::class);
     }
 
+    /**
+     * Total sales area aggregated by country using the latest available fiscal year ≤ requested year.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{country_code: string, total_sales_area: float}>
+     */
+    public function totalSalesAreaByCountryAndYear(int $fiscalYear, ?array $countryCodes = null): array
+    {
+        $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
+            . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.salesAreaM2 IS NOT NULL';
+
+        $qb = $this->createQueryBuilder('sa')
+            ->select('s.countryCode AS country_code', 'SUM(sa.salesAreaM2) AS total_sales_area')
+            ->join('sa.site', 's')
+            ->where('sa.fiscalYear = (' . $subDql . ')')
+            ->andWhere('sa.salesAreaM2 IS NOT NULL')
+            ->setParameter('year', $fiscalYear)
+            ->groupBy('s.countryCode');
+
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
+        }
+
+        return $qb->getQuery()->getArrayResult();
+    }
+
     public function findBySiteYearMonth(Site $site, int $fiscalYear, int $month): ?SiteArea
     {
         return $this->findOneBy([

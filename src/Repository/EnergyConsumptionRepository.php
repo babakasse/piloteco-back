@@ -100,6 +100,38 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         return $qb->getQuery()->getArrayResult();
     }
 
+    /**
+     * Sum total consumption aggregated by country, month range and resource category.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{country_code: string, total: float}>
+     */
+    public function sumByCountryAndMonthRange(
+        string $resourceCategory,
+        string $monthFrom,
+        string $monthTo,
+        ?array $countryCodes = null,
+    ): array {
+        $qb = $this->createQueryBuilder('ec')
+            ->select('s.countryCode AS country_code', 'SUM(ec.totalSurfaceQuantityConsumed) AS total')
+            ->join('ec.site', 's')
+            ->where('ec.resourceCategory = :resource')
+            ->andWhere('ec.monthYear >= :monthFrom')
+            ->andWhere('ec.monthYear <= :monthTo')
+            ->setParameter('resource', $resourceCategory)
+            ->setParameter('monthFrom', $monthFrom)
+            ->setParameter('monthTo', $monthTo)
+            ->groupBy('s.countryCode')
+            ->orderBy('s.countryCode', 'ASC');
+
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
+        }
+
+        return $qb->getQuery()->getArrayResult();
+    }
+
     public function findBySiteMonthAndResource(
         Site $site,
         string $monthYear,

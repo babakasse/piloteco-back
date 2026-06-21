@@ -187,6 +187,90 @@ final readonly class EnergyKpiCalculatorService
     }
 
     /**
+     * Energy intensity per country for the selected month.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{country_code: string, intensity: float|null, total_consumption_kwh: float, total_area_m2: float|null}>
+     */
+    public function computeCountryIntensity(
+        string $resourceCategory,
+        string $currentMonth,
+        ?array $countryCodes = null,
+    ): array {
+        $year = (int) substr($currentMonth, 0, 4);
+
+        $consumptions = $this->energyConsumptionRepository->sumByCountryAndMonthRange(
+            $resourceCategory, $currentMonth, $currentMonth, $countryCodes,
+        );
+        $areas = $this->siteAreaRepository->totalSalesAreaByCountryAndYear($year, $countryCodes);
+
+        $consumptionByCountry = array_column($consumptions, 'total', 'country_code');
+        $areaByCountry = array_column($areas, 'total_sales_area', 'country_code');
+
+        $results = [];
+        foreach ($consumptionByCountry as $countryCode => $total) {
+            $area = isset($areaByCountry[$countryCode]) ? (float) $areaByCountry[$countryCode] : null;
+            $intensity = ($area !== null && $area > 0)
+                ? round((float) $total / $area, 3)
+                : null;
+
+            $results[] = [
+                'country_code' => (string) $countryCode,
+                'total_consumption_kwh' => (float) $total,
+                'total_area_m2' => $area,
+                'intensity' => $intensity,
+            ];
+        }
+
+        usort($results, static fn (array $a, array $b): int => ($b['intensity'] ?? 0) <=> ($a['intensity'] ?? 0));
+
+        return $results;
+    }
+
+    /**
+     * Refrigerant fluid reloads per country for the quarter containing the current month.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{country_code: string, total_kg: float, quarter_start: string, quarter_end: string}>
+     */
+    public function computeRefrigerantByCountry(
+        string $currentMonth,
+        ?array $countryCodes = null,
+    ): array {
+        [$qtdStart, $qtdEnd] = $this->currentQuarterRange($currentMonth);
+
+        $rows = $this->refrigerantFluidRepository->sumByCountryAndMonthRange($qtdStart, $qtdEnd, $countryCodes);
+
+        return array_map(
+            static fn (array $row): array => [
+                'country_code' => (string) $row['country_code'],
+                'total_kg' => (float) $row['total_kg'],
+                'quarter_start' => $qtdStart,
+                'quarter_end' => $qtdEnd,
+            ],
+            $rows,
+        );
+    }
+
+    /**
+     * Returns [quarterStart, quarterEnd] for the quarter containing the given month.
+     * quarterEnd is capped at the current month (quarter-to-date).
+     *
+     * @return array{string, string}
+     */
+    private function currentQuarterRange(string $monthYear): array
+    {
+        $year = (int) substr($monthYear, 0, 4);
+        $month = (int) substr($monthYear, 5, 2);
+        $quarterStartMonth = (int) (floor(($month - 1) / 3) * 3) + 1;
+
+        return [
+            sprintf('%d-%02d', $year, $quarterStartMonth),
+            $monthYear,
+        ];
+    }
+
+    /**
      * @param list<string>|null $countryCodes
      */
     private function sumConsumption(

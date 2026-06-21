@@ -254,4 +254,112 @@ class EnergyKpiCalculatorServiceTest extends TestCase
         // null = all countries (no filter)
         $this->service->computeSummary('ELEC', '2025-01', null);
     }
+
+    // ── computeCountryIntensity ────────────────────────────────────────────────
+
+    public function testComputeCountryIntensityCalculatesPerCountry(): void
+    {
+        $this->energyRepo->method('sumByCountryAndMonthRange')->willReturn([
+            ['country_code' => 'FR', 'total' => 600_000.0],
+            ['country_code' => 'ES', 'total' => 400_000.0],
+        ]);
+        $this->areaRepo->method('totalSalesAreaByCountryAndYear')->willReturn([
+            ['country_code' => 'FR', 'total_sales_area' => 20_000.0],  // 30 kWh/m²
+            ['country_code' => 'ES', 'total_sales_area' => 10_000.0],  // 40 kWh/m²
+        ]);
+
+        $result = $this->service->computeCountryIntensity('ELEC', '2025-01');
+
+        $this->assertCount(2, $result);
+        // Sorted DESC by intensity: ES (40) first, FR (30) second
+        $this->assertSame('ES', $result[0]['country_code']);
+        $this->assertEqualsWithDelta(40.0, $result[0]['intensity'], 0.01);
+        $this->assertSame('FR', $result[1]['country_code']);
+        $this->assertEqualsWithDelta(30.0, $result[1]['intensity'], 0.01);
+    }
+
+    public function testComputeCountryIntensityReturnsNullIntensityWhenNoArea(): void
+    {
+        $this->energyRepo->method('sumByCountryAndMonthRange')->willReturn([
+            ['country_code' => 'FR', 'total' => 500_000.0],
+        ]);
+        $this->areaRepo->method('totalSalesAreaByCountryAndYear')->willReturn([]);
+
+        $result = $this->service->computeCountryIntensity('ELEC', '2025-01');
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['intensity']);
+        $this->assertSame(500_000.0, $result[0]['total_consumption_kwh']);
+    }
+
+    public function testComputeCountryIntensityPassesCountryCodesToRepositories(): void
+    {
+        $countryCodes = ['FR', 'ES'];
+
+        $this->energyRepo->expects($this->once())
+            ->method('sumByCountryAndMonthRange')
+            ->with($this->anything(), $this->anything(), $this->anything(), $countryCodes)
+            ->willReturn([]);
+
+        $this->areaRepo->expects($this->once())
+            ->method('totalSalesAreaByCountryAndYear')
+            ->with($this->anything(), $countryCodes)
+            ->willReturn([]);
+
+        $this->service->computeCountryIntensity('ELEC', '2025-01', $countryCodes);
+    }
+
+    // ── computeRefrigerantByCountry ────────────────────────────────────────────
+
+    public function testComputeRefrigerantByCountryGroupsByCountry(): void
+    {
+        $this->refrigerantRepo->method('sumByCountryAndMonthRange')->willReturn([
+            ['country_code' => 'FR', 'total_kg' => 150.5],
+            ['country_code' => 'HU', 'total_kg' => 75.0],
+        ]);
+
+        $result = $this->service->computeRefrigerantByCountry('2025-03');
+
+        $this->assertCount(2, $result);
+        $this->assertSame('FR', $result[0]['country_code']);
+        $this->assertSame(150.5, $result[0]['total_kg']);
+        $this->assertSame('HU', $result[1]['country_code']);
+    }
+
+    public function testComputeRefrigerantByCountryComputesCorrectQtdRange(): void
+    {
+        $capturedArgs = [];
+        $this->refrigerantRepo->method('sumByCountryAndMonthRange')
+            ->willReturnCallback(function (string $from, string $to) use (&$capturedArgs): array {
+                $capturedArgs = ['from' => $from, 'to' => $to];
+                return [];
+            });
+
+        // March 2025 → Q1 → start = 2025-01, end = 2025-03
+        $this->service->computeRefrigerantByCountry('2025-03');
+        $this->assertSame('2025-01', $capturedArgs['from']);
+        $this->assertSame('2025-03', $capturedArgs['to']);
+
+        // July 2025 → Q3 → start = 2025-07, end = 2025-07 (MTD within Q3)
+        $this->service->computeRefrigerantByCountry('2025-07');
+        $this->assertSame('2025-07', $capturedArgs['from']);
+        $this->assertSame('2025-07', $capturedArgs['to']);
+
+        // November 2025 → Q4 → start = 2025-10, end = 2025-11
+        $this->service->computeRefrigerantByCountry('2025-11');
+        $this->assertSame('2025-10', $capturedArgs['from']);
+        $this->assertSame('2025-11', $capturedArgs['to']);
+    }
+
+    public function testComputeRefrigerantByCountryIncludesQuarterDatesInResult(): void
+    {
+        $this->refrigerantRepo->method('sumByCountryAndMonthRange')->willReturn([
+            ['country_code' => 'FR', 'total_kg' => 100.0],
+        ]);
+
+        $result = $this->service->computeRefrigerantByCountry('2025-02');
+
+        $this->assertSame('2025-01', $result[0]['quarter_start']);
+        $this->assertSame('2025-02', $result[0]['quarter_end']);
+    }
 }

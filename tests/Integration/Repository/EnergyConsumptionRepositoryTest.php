@@ -210,4 +210,51 @@ class EnergyConsumptionRepositoryTest extends KernelTestCase
 
         $this->assertGreaterThan($totalFr, $totalBoth, 'Adding ES to filter must increase total consumption');
     }
+
+    // ── sumByCountryAndMonthRange ──────────────────────────────────────────────
+    // Note: these tests assert minimums/structure because other test fixtures
+    // in the shared test DB also contribute to country-level aggregates.
+
+    public function testSumByCountryReturnsBothCountries(): void
+    {
+        $results = $this->repository->sumByCountryAndMonthRange('ELEC', '2024-01', '2024-01');
+        $totals = array_column($results, 'total', 'country_code');
+
+        // Our fixtures contribute FR≥100k and ES≥80k; exact value depends on other test data
+        $this->assertArrayHasKey('FR', $totals);
+        $this->assertArrayHasKey('ES', $totals);
+        $this->assertGreaterThanOrEqual(100_000.0, (float) $totals['FR']);
+        $this->assertGreaterThanOrEqual(80_000.0, (float) $totals['ES']);
+    }
+
+    public function testSumByCountryFiltersResourceCategory(): void
+    {
+        // GAS total for FR must include at least our 50k fixture
+        $results = $this->repository->sumByCountryAndMonthRange('GAS', '2024-01', '2024-01');
+        $totals = array_column($results, 'total', 'country_code');
+
+        $this->assertArrayHasKey('FR', $totals);
+        $this->assertGreaterThanOrEqual(50_000.0, (float) $totals['FR']);
+    }
+
+    public function testSumByCountryFiltersCountryCodes(): void
+    {
+        $results = $this->repository->sumByCountryAndMonthRange('ELEC', '2024-01', '2024-01', ['FR']);
+        $totals = array_column($results, 'total', 'country_code');
+
+        $this->assertArrayHasKey('FR', $totals);
+        $this->assertArrayNotHasKey('ES', $totals);
+    }
+
+    public function testSumByCountryMultipleMonthsExceedsOneMonthTotal(): void
+    {
+        // 3-month range must yield more than single month (monotone property)
+        $resultsSingle = $this->repository->sumByCountryAndMonthRange('ELEC', '2024-01', '2024-01');
+        $totalSingle = (float) (array_column($resultsSingle, 'total', 'country_code')['FR'] ?? 0);
+
+        $resultsMulti = $this->repository->sumByCountryAndMonthRange('ELEC', '2024-01', '2024-03');
+        $totalMulti = (float) (array_column($resultsMulti, 'total', 'country_code')['FR'] ?? 0);
+
+        $this->assertGreaterThan($totalSingle, $totalMulti, 'Three months must yield more than one month for FR');
+    }
 }

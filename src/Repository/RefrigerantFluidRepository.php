@@ -19,6 +19,35 @@ class RefrigerantFluidRepository extends ServiceEntityRepository
         parent::__construct($registry, RefrigerantFluid::class);
     }
 
+    /**
+     * Total refrigerant reloaded aggregated by country for a given month range.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{country_code: string, total_kg: float}>
+     */
+    public function sumByCountryAndMonthRange(
+        string $monthFrom,
+        string $monthTo,
+        ?array $countryCodes = null,
+    ): array {
+        $qb = $this->createQueryBuilder('rf')
+            ->select('s.countryCode AS country_code', 'SUM(rf.quantityReloaded) AS total_kg')
+            ->join('rf.site', 's')
+            ->where('rf.monthYear >= :monthFrom')
+            ->andWhere('rf.monthYear <= :monthTo')
+            ->setParameter('monthFrom', $monthFrom)
+            ->setParameter('monthTo', $monthTo)
+            ->groupBy('s.countryCode')
+            ->orderBy('s.countryCode', 'ASC');
+
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
+        }
+
+        return $qb->getQuery()->getArrayResult();
+    }
+
     public function findBySiteMonthAndType(
         Site $site,
         string $monthYear,

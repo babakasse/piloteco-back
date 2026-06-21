@@ -417,6 +417,174 @@ class KpiTest extends ApiTestCase
         }
     }
 
+    // ── /kpi/country-intensity ─────────────────────────────────────────────────
+
+    public function testCountryIntensityRequiresAuthentication(): void
+    {
+        static::createClient()->request('GET', '/kpi/country-intensity');
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testCountryIntensityReturnsExpectedStructure(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/country-intensity?resourceCategory=ELEC&month=2024-01',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+
+        $first = $data[0];
+        $this->assertArrayHasKey('countryCode', $first);
+        // intensity may be null if no area data, but key must exist when not null
+        if (isset($first['intensity'])) {
+            $this->assertIsFloat($first['intensity']);
+            $this->assertGreaterThan(0, $first['intensity']);
+        }
+    }
+
+    public function testCountryIntensityReturnsBothCountriesWithoutFilter(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/country-intensity?resourceCategory=ELEC&month=2024-01',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $codes = array_column($data, 'countryCode');
+
+        $this->assertContains('FR', $codes);
+        $this->assertContains('ES', $codes);
+    }
+
+    public function testCountryIntensityFiltersByCountryCode(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/country-intensity?' . http_build_query([
+                'resourceCategory' => 'ELEC',
+                'month' => '2024-01',
+                'countryCodes' => ['FR'],
+            ]),
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $codes = array_column($data, 'countryCode');
+
+        $this->assertContains('FR', $codes);
+        $this->assertNotContains('ES', $codes);
+    }
+
+    // ── /kpi/refrigerant-by-country ────────────────────────────────────────────
+
+    public function testRefrigerantByCountryRequiresAuthentication(): void
+    {
+        static::createClient()->request('GET', '/kpi/refrigerant-by-country');
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testRefrigerantByCountryReturnsExpectedStructure(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/refrigerant-by-country?month=2024-01',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+
+        $first = $data[0];
+        $this->assertArrayHasKey('countryCode', $first);
+        $this->assertArrayHasKey('totalKg', $first);
+        $this->assertArrayHasKey('quarterStart', $first);
+        $this->assertArrayHasKey('quarterEnd', $first);
+        $this->assertGreaterThan(0, $first['totalKg']);
+    }
+
+    public function testRefrigerantByCountryReturnsCorrectQtdRange(): void
+    {
+        // January → Q1 → quarterStart = 2024-01
+        static::createClient()->request(
+            'GET',
+            '/kpi/refrigerant-by-country?month=2024-01',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertNotEmpty($data);
+        $this->assertSame('2024-01', $data[0]['quarterStart']);
+        $this->assertSame('2024-01', $data[0]['quarterEnd']);
+    }
+
+    public function testRefrigerantByCountryFiltersBySingleCountryCode(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/refrigerant-by-country?' . http_build_query([
+                'month' => '2024-01',
+                'countryCodes' => ['FR'],
+            ]),
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $codes = array_column($data, 'countryCode');
+
+        $this->assertContains('FR', $codes);
+        // ES has no refrigerant fixture in KpiTest → even without filter it wouldn't appear,
+        // but the filter must not break the query
+        $this->assertNotContains('ES', $codes);
+    }
+
     public function testMonthlyEvolutionFiltersMultipleCountryCodes(): void
     {
         static::createClient()->request(
