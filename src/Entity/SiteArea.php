@@ -27,7 +27,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: SiteAreaRepository::class)]
 #[ORM\Table(name: 'site_area')]
 #[ORM\Index(columns: ['fiscal_year'], name: 'idx_area_fiscal_year')]
-#[ORM\Index(columns: ['site_id', 'fiscal_year', 'month'], name: 'idx_area_site_year_month')]
 #[ORM\UniqueConstraint(name: 'uq_area_site_year_month', columns: ['site_id', 'fiscal_year', 'month'])]
 class SiteArea
 {

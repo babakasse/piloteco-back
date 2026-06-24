@@ -48,7 +48,7 @@ final class ImportEnergyConsumptionCommand extends Command
 
         $io->success(sprintf('Import completed in %ss', $duration));
         $io->table(
-            ['Created', 'Updated', 'Skipped', 'Total processed'],
+            ['Created', 'Updated', 'Skipped', 'Total persisted'],
             [[$stats->getCreated(), $stats->getUpdated(), $stats->getSkipped(), $stats->getTotal()]],
         );
 

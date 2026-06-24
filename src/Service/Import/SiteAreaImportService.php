@@ -17,7 +17,7 @@ final class SiteAreaImportService
     /** @var array<string, int> Map site_unique_code → site id (survives EM::clear()) */
     private array $siteIdCache = [];
 
-    /** @var array<string, true> Set of "siteId-year-month" keys to deduplicate CSV rows */
+    /** @var array<string, true> Set of "siteUniqueCode-year-month" keys to deduplicate CSV rows */
     private array $processedAreaKeys = [];
 
     /**
@@ -190,11 +190,10 @@ final class SiteAreaImportService
     private function parseFloat(string $value): ?float
     {
         $value = trim($value);
-        if ($value === '' || $value === 'null' || $value === 'NULL') {
+        if ($value === '' || strcasecmp($value, 'null') === 0) {
             return null;
         }
-        // Handle comma as decimal separator
         $value = str_replace(',', '.', $value);
-        return (float) $value;
+        return is_numeric($value) ? (float) $value : null;
     }
 }

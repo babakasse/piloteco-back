@@ -150,10 +150,11 @@ final class EnergyConsumptionImportService
     private function parseFloat(string $value): ?float
     {
         $value = trim($value);
-        if ($value === '' || $value === 'null' || $value === 'NULL') {
+        if ($value === '' || strcasecmp($value, 'null') === 0) {
             return null;
         }
-        return (float) $value;
+        $value = str_replace(',', '.', $value);
+        return is_numeric($value) ? (float) $value : null;
     }
 
     private function parseBool(string $value): bool

@@ -612,7 +612,7 @@ final readonly class EnergyKpiCalculatorService
 
     private function shiftMonth(string $monthYear, int $monthsOffset): string
     {
-        $date = \DateTimeImmutable::createFromFormat('Y-m', $monthYear);
+        $date = \DateTimeImmutable::createFromFormat('!Y-m', $monthYear);
         if ($date === false) {
             return $monthYear;
         }
