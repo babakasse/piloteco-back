@@ -49,6 +49,30 @@ final class KpiSummaryResource
     public ?float $refrigerantTotalYtdKg = null;
 
     #[Groups(['kpi:read'])]
+    public ?float $salesSurfaceM2 = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $totalSurfaceM2 = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $commercialEnergyIntensityYtd = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $buildingEnergyIntensityYtd = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $greenElectricityConsumptionKwh = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $greenElectricityConsumptionPercent = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $greenElectricityProductionKwh = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $greenElectricityProductionPercent = null;
+
+    #[Groups(['kpi:read'])]
     public string $resourceCategory = 'ELEC';
 
     #[Groups(['kpi:read'])]

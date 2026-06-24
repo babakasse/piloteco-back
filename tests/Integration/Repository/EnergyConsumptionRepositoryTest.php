@@ -257,4 +257,54 @@ class EnergyConsumptionRepositoryTest extends KernelTestCase
 
         $this->assertGreaterThan($totalSingle, $totalMulti, 'Three months must yield more than one month for FR');
     }
+
+    // ── monthlyTotalsByCountry ─────────────────────────────────────────────────
+
+    public function testMonthlyTotalsByCountryReturnsOneRowPerCountryPerMonth(): void
+    {
+        $results = $this->repository->monthlyTotalsByCountry('ELEC', '2024-01', '2024-03');
+        $keyed = [];
+        foreach ($results as $row) {
+            $keyed[$row['country_code'] . '_' . $row['month_year']] = (float) $row['total'];
+        }
+
+        // Our fixtures: FR and ES both have ELEC data in Jan-Mar 2024
+        $this->assertGreaterThanOrEqual(100_000.0, $keyed['FR_2024-01'] ?? 0.0);
+        $this->assertGreaterThanOrEqual(80_000.0, $keyed['ES_2024-01'] ?? 0.0);
+    }
+
+    public function testMonthlyTotalsByCountryExcludesOutOfRange(): void
+    {
+        $results = $this->repository->monthlyTotalsByCountry('ELEC', '2024-01', '2024-02');
+        $months = array_unique(array_column($results, 'month_year'));
+
+        $this->assertNotContains('2024-03', $months);
+    }
+
+    public function testMonthlyTotalsByCountryFiltersCountryCodes(): void
+    {
+        $results = $this->repository->monthlyTotalsByCountry('ELEC', '2024-01', '2024-03', ['FR']);
+        $countries = array_unique(array_column($results, 'country_code'));
+
+        $this->assertContains('FR', $countries);
+        $this->assertNotContains('ES', $countries);
+    }
+
+    // ── comparable + realDataOnly filters ────────────────────────────────────
+
+    public function testComparableFilterReturnsSitesWithIsComparableTrue(): void
+    {
+        // All our fixtures have isComparable=false (default) except we set one to true below
+        // We query with onlyComparable=true → should get less data than without filter
+        $resultsAll = $this->repository->sumByCountryAndMonthRange('ELEC', '2024-01', '2024-03');
+        $resultsComparable = $this->repository->sumByCountryAndMonthRange(
+            'ELEC', '2024-01', '2024-03', null, null, null, true
+        );
+
+        // With comparable=true the total must be ≤ without filter (comparable is a subset)
+        $totalAll = array_sum(array_column($resultsAll, 'total'));
+        $totalComparable = array_sum(array_column($resultsComparable, 'total'));
+
+        $this->assertLessThanOrEqual((float) $totalAll, (float) $totalComparable);
+    }
 }

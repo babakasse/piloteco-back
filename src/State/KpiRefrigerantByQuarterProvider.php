@@ -6,13 +6,13 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\ApiResource\KpiRefrigerantByCountryResource;
+use App\ApiResource\KpiRefrigerantByQuarterResource;
 use App\Service\EnergyKpiCalculatorService;
 
 /**
- * @implements ProviderInterface<KpiRefrigerantByCountryResource>
+ * @implements ProviderInterface<KpiRefrigerantByQuarterResource>
  */
-final readonly class KpiRefrigerantByCountryProvider implements ProviderInterface
+final readonly class KpiRefrigerantByQuarterProvider implements ProviderInterface
 {
     use KpiFilterResolverTrait;
 
@@ -26,18 +26,20 @@ final readonly class KpiRefrigerantByCountryProvider implements ProviderInterfac
 
         $month = (string) ($filters['month'] ?? date('Y-m'));
 
-        $rows = $this->kpiCalculatorService->computeRefrigerantByCountry(
+        $rows = $this->kpiCalculatorService->computeRefrigerantByCountryQuarterly(
             currentMonth: $month,
             countryCodes: $this->resolveCountryCodes($filters),
             onlyComparable: $this->resolveComparable($filters),
         );
 
-        return array_map(static function (array $row): KpiRefrigerantByCountryResource {
-            $resource = new KpiRefrigerantByCountryResource();
-            $resource->countryCode = $row['country_code'];
-            $resource->totalKg = $row['total_kg'];
+        return array_map(static function (array $row): KpiRefrigerantByQuarterResource {
+            $resource = new KpiRefrigerantByQuarterResource();
+            $resource->id = $row['quarter'] . '_' . $row['country_code'];
+            $resource->quarter = $row['quarter'];
             $resource->quarterStart = $row['quarter_start'];
             $resource->quarterEnd = $row['quarter_end'];
+            $resource->countryCode = $row['country_code'];
+            $resource->totalKg = $row['total_kg'];
             return $resource;
         }, $rows);
     }

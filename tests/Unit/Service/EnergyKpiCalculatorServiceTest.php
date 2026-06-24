@@ -362,4 +362,118 @@ class EnergyKpiCalculatorServiceTest extends TestCase
         $this->assertSame('2025-01', $result[0]['quarter_start']);
         $this->assertSame('2025-02', $result[0]['quarter_end']);
     }
+
+    // ── computeCountryIntensityMonthly ─────────────────────────────────────────
+
+    public function testComputeCountryIntensityMonthlyReturnsIntensityPerCountryPerMonth(): void
+    {
+        $this->energyRepo->method('monthlyTotalsByCountry')->willReturn([
+            ['country_code' => 'FR', 'month_year' => '2025-01', 'total' => 1_000_000.0],
+            ['country_code' => 'FR', 'month_year' => '2025-02', 'total' => 800_000.0],
+            ['country_code' => 'ES', 'month_year' => '2025-01', 'total' => 500_000.0],
+        ]);
+        $this->areaRepo->method('totalSalesAreaByCountryAndYear')->willReturn([
+            ['country_code' => 'FR', 'total_sales_area' => 10_000.0],
+            ['country_code' => 'ES', 'total_sales_area' => 5_000.0],
+        ]);
+
+        $result = $this->service->computeCountryIntensityMonthly('ELEC', 2025);
+
+        $this->assertCount(3, $result);
+
+        $frJan = array_values(array_filter($result, fn($r) => $r['country_code'] === 'FR' && $r['month'] === '2025-01'))[0];
+        $this->assertSame(100.0, $frJan['intensity']); // 1_000_000 / 10_000
+
+        $frFeb = array_values(array_filter($result, fn($r) => $r['country_code'] === 'FR' && $r['month'] === '2025-02'))[0];
+        $this->assertSame(80.0, $frFeb['intensity']); // 800_000 / 10_000
+    }
+
+    public function testComputeCountryIntensityMonthlyReturnsNullIntensityWhenNoArea(): void
+    {
+        $this->energyRepo->method('monthlyTotalsByCountry')->willReturn([
+            ['country_code' => 'FR', 'month_year' => '2025-01', 'total' => 500_000.0],
+        ]);
+        $this->areaRepo->method('totalSalesAreaByCountryAndYear')->willReturn([]); // no area data
+
+        $result = $this->service->computeCountryIntensityMonthly('ELEC', 2025);
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['intensity']);
+        $this->assertSame(500_000.0, $result[0]['total_kwh']);
+    }
+
+    // ── computeRefrigerantByCountryQuarterly ────────────────────────────────────
+
+    public function testComputeRefrigerantByCountryQuarterlyGroupsByQuarter(): void
+    {
+        // 2025-05 → current quarter is Q2; so Q1 and Q2 should both appear
+        $callLog = [];
+        $this->refrigerantRepo->method('monthlyByCountry')
+            ->willReturnCallback(function (string $from, string $to) use (&$callLog): array {
+                $callLog[] = [$from, $to];
+                return [
+                    ['country_code' => 'FR', 'month_year' => $from, 'total_kg' => 100.0],
+                ];
+            });
+
+        $result = $this->service->computeRefrigerantByCountryQuarterly('2025-05');
+
+        // Should have called for Q1 (2025-01 → 2025-03) and Q2 (2025-04 → 2025-05 QTD)
+        $this->assertCount(2, $callLog);
+        $this->assertSame(['2025-01', '2025-03'], $callLog[0]);
+        $this->assertSame(['2025-04', '2025-05'], $callLog[1]);
+
+        // Result: 2 entries (one per quarter), both for FR
+        $quarters = array_column($result, 'quarter');
+        $this->assertContains('Q1 2025', $quarters);
+        $this->assertContains('Q2 2025', $quarters);
+    }
+
+    public function testComputeRefrigerantByCountryQuarterlyAggregatesMultipleMonthsInQuarter(): void
+    {
+        // Only Q1, already completed: 3 months of data for FR → aggregate
+        $this->refrigerantRepo->method('monthlyByCountry')->willReturn([
+            ['country_code' => 'FR', 'month_year' => '2025-01', 'total_kg' => 100.0],
+            ['country_code' => 'FR', 'month_year' => '2025-02', 'total_kg' => 200.0],
+            ['country_code' => 'FR', 'month_year' => '2025-03', 'total_kg' => 50.0],
+        ]);
+
+        $result = $this->service->computeRefrigerantByCountryQuarterly('2025-03');
+
+        $this->assertCount(1, $result);
+        $this->assertSame(350.0, $result[0]['total_kg']); // 100 + 200 + 50
+        $this->assertSame('Q1 2025', $result[0]['quarter']);
+        $this->assertSame('FR', $result[0]['country_code']);
+    }
+
+    // ── computeRefrigerantBreakdown ────────────────────────────────────────────
+
+    public function testComputeRefrigerantBreakdownComputesPercentages(): void
+    {
+        $this->refrigerantRepo->method('sumByFluidType')->willReturn([
+            ['fluid_type' => 'R404A', 'total_kg' => 600.0],
+            ['fluid_type' => 'R134a', 'total_kg' => 400.0],
+        ]);
+
+        $result = $this->service->computeRefrigerantBreakdown('2025-01', '2025-03');
+
+        $this->assertCount(2, $result);
+
+        $r404a = array_values(array_filter($result, fn($r) => $r['fluid_type'] === 'R404A'))[0];
+        $this->assertSame(600.0, $r404a['total_kg']);
+        $this->assertSame(60.0, $r404a['percentage']);
+
+        $r134a = array_values(array_filter($result, fn($r) => $r['fluid_type'] === 'R134a'))[0];
+        $this->assertSame(400.0, $r134a['total_kg']);
+        $this->assertSame(40.0, $r134a['percentage']);
+    }
+
+    public function testComputeRefrigerantBreakdownReturnsEmptyWhenNoData(): void
+    {
+        $this->refrigerantRepo->method('sumByFluidType')->willReturn([]);
+
+        $result = $this->service->computeRefrigerantBreakdown('2025-01', '2025-12');
+
+        $this->assertSame([], $result);
+    }
 }

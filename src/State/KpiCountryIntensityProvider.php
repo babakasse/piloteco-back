@@ -14,27 +14,11 @@ use App\Service\EnergyKpiCalculatorService;
  */
 final readonly class KpiCountryIntensityProvider implements ProviderInterface
 {
+    use KpiFilterResolverTrait;
+
     public function __construct(
         private EnergyKpiCalculatorService $kpiCalculatorService,
     ) {}
-
-    /**
-     * @param array<string, mixed> $filters
-     * @return list<string>|null
-     */
-    private function resolveCountryCodes(array $filters): ?array
-    {
-        $raw = $filters['countryCodes'] ?? null;
-
-        if ($raw === null || $raw === '' || $raw === []) {
-            return null;
-        }
-
-        $codes = is_array($raw) ? array_values($raw) : [$raw];
-        $codes = array_filter(array_map('strtoupper', $codes));
-
-        return $codes !== [] ? array_values($codes) : null;
-    }
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
@@ -42,9 +26,16 @@ final readonly class KpiCountryIntensityProvider implements ProviderInterface
 
         $resourceCategory = strtoupper((string) ($filters['resourceCategory'] ?? 'ELEC'));
         $month = (string) ($filters['month'] ?? date('Y-m'));
-        $countryCodes = $this->resolveCountryCodes($filters);
 
-        $rows = $this->kpiCalculatorService->computeCountryIntensity($resourceCategory, $month, $countryCodes);
+        $rows = $this->kpiCalculatorService->computeCountryIntensity(
+            resourceCategory: $resourceCategory,
+            currentMonth: $month,
+            countryCodes: $this->resolveCountryCodes($filters),
+            resourceCategories: $this->resolveResourceCategories($filters),
+            resourceSubCategory: $this->resolveResourceSubCategory($filters),
+            onlyComparable: $this->resolveComparable($filters),
+            realDataOnly: $this->resolveRealDataOnly($filters),
+        );
 
         return array_map(static function (array $row): KpiCountryIntensityResource {
             $resource = new KpiCountryIntensityResource();

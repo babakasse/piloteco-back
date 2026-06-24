@@ -614,4 +614,119 @@ class KpiTest extends ApiTestCase
         // FR (100k) + ES (80k) = 180k minimum
         $this->assertGreaterThanOrEqual(180_000.0, (float) $jan[0]['current']);
     }
+
+    // ── /kpi/country-intensity-monthly ────────────────────────────────────────
+
+    public function testCountryIntensityMonthlyRequiresAuth(): void
+    {
+        static::createClient()->request('GET', '/kpi/country-intensity-monthly?resourceCategory=ELEC&year=2024', [
+            'headers' => ['Accept' => 'application/json'],
+        ]);
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testCountryIntensityMonthlyReturnsArrayWithExpectedShape(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/country-intensity-monthly?' . http_build_query([
+                'resourceCategory' => 'ELEC',
+                'year' => 2024,
+                'countryCodes' => ['FR'],
+            ]),
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        // Must have at least one entry for FR 2024
+        $this->assertNotEmpty($data);
+
+        $first = $data[0];
+        $this->assertArrayHasKey('month', $first);
+        $this->assertArrayHasKey('countryCode', $first);
+    }
+
+    // ── /kpi/refrigerant-by-quarter ───────────────────────────────────────────
+
+    public function testRefrigerantByQuarterRequiresAuth(): void
+    {
+        static::createClient()->request('GET', '/kpi/refrigerant-by-quarter?month=2024-03', [
+            'headers' => ['Accept' => 'application/json'],
+        ]);
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testRefrigerantByQuarterReturnsArrayWithExpectedShape(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/refrigerant-by-quarter?month=2024-03',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+
+        if (!empty($data)) {
+            $first = $data[0];
+            $this->assertArrayHasKey('quarter', $first);
+            $this->assertArrayHasKey('countryCode', $first);
+            $this->assertArrayHasKey('totalKg', $first);
+        }
+    }
+
+    // ── /kpi/refrigerant-breakdown ────────────────────────────────────────────
+
+    public function testRefrigerantBreakdownRequiresAuth(): void
+    {
+        static::createClient()->request('GET', '/kpi/refrigerant-breakdown?month=2024-03', [
+            'headers' => ['Accept' => 'application/json'],
+        ]);
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testRefrigerantBreakdownReturnsPercentages(): void
+    {
+        static::createClient()->request(
+            'GET',
+            '/kpi/refrigerant-breakdown?month=2024-03',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . self::$token,
+                    'Accept' => 'application/json',
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode(static::getClient()->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+
+        if (!empty($data)) {
+            $first = $data[0];
+            $this->assertArrayHasKey('fluidType', $first);
+            $this->assertArrayHasKey('totalKg', $first);
+            $this->assertArrayHasKey('percentage', $first);
+
+            // Percentages must sum to ~100
+            $totalPct = array_sum(array_column($data, 'percentage'));
+            $this->assertEqualsWithDelta(100.0, $totalPct, 0.5);
+        }
+    }
 }

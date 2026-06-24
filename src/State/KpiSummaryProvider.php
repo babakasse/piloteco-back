@@ -14,30 +14,11 @@ use App\Service\EnergyKpiCalculatorService;
  */
 final readonly class KpiSummaryProvider implements ProviderInterface
 {
+    use KpiFilterResolverTrait;
+
     public function __construct(
         private EnergyKpiCalculatorService $kpiCalculatorService,
     ) {}
-
-    /**
-     * Normalize countryCodes from query string.
-     * Accepts ?countryCodes[]=FR&countryCodes[]=ES (array) or ?countryCodes=FR (single string).
-     *
-     * @param array<string, mixed> $filters
-     * @return list<string>|null  null = no filter (all countries)
-     */
-    private function resolveCountryCodes(array $filters): ?array
-    {
-        $raw = $filters['countryCodes'] ?? null;
-
-        if ($raw === null || $raw === '' || $raw === []) {
-            return null;
-        }
-
-        $codes = is_array($raw) ? array_values($raw) : [$raw];
-        $codes = array_filter(array_map('strtoupper', $codes));
-
-        return $codes !== [] ? array_values($codes) : null;
-    }
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
@@ -45,9 +26,16 @@ final readonly class KpiSummaryProvider implements ProviderInterface
 
         $resourceCategory = strtoupper((string) ($filters['resourceCategory'] ?? 'ELEC'));
         $month = (string) ($filters['month'] ?? date('Y-m'));
-        $countryCodes = $this->resolveCountryCodes($filters);
 
-        $kpiData = $this->kpiCalculatorService->computeSummary($resourceCategory, $month, $countryCodes);
+        $kpiData = $this->kpiCalculatorService->computeSummary(
+            resourceCategory: $resourceCategory,
+            currentMonth: $month,
+            countryCodes: $this->resolveCountryCodes($filters),
+            resourceCategories: $this->resolveResourceCategories($filters),
+            resourceSubCategory: $this->resolveResourceSubCategory($filters),
+            onlyComparable: $this->resolveComparable($filters),
+            realDataOnly: $this->resolveRealDataOnly($filters),
+        );
 
         $resource = new KpiSummaryResource();
         $resource->resourceCategory = $resourceCategory;
@@ -59,6 +47,14 @@ final readonly class KpiSummaryProvider implements ProviderInterface
         $resource->totalConsumptionMtd = $kpiData['total_consumption_mtd'];
         $resource->totalConsumptionYtd = $kpiData['total_consumption_ytd'];
         $resource->refrigerantTotalYtdKg = $kpiData['refrigerant_total_ytd_kg'];
+        $resource->salesSurfaceM2 = $kpiData['sales_surface_m2'];
+        $resource->totalSurfaceM2 = $kpiData['total_surface_m2'];
+        $resource->commercialEnergyIntensityYtd = $kpiData['commercial_energy_intensity_ytd'];
+        $resource->buildingEnergyIntensityYtd = $kpiData['building_energy_intensity_ytd'];
+        $resource->greenElectricityConsumptionKwh = $kpiData['green_electricity_consumption_kwh'];
+        $resource->greenElectricityConsumptionPercent = $kpiData['green_electricity_consumption_percent'];
+        $resource->greenElectricityProductionKwh = $kpiData['green_electricity_production_kwh'];
+        $resource->greenElectricityProductionPercent = $kpiData['green_electricity_production_percent'];
 
         return [$resource];
     }

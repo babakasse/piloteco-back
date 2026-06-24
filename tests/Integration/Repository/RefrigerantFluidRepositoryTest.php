@@ -155,4 +155,70 @@ class RefrigerantFluidRepositoryTest extends KernelTestCase
         $results = $this->repository->sumByCountryAndMonthRange('2024-01', '2024-03', ['ZZ']);
         $this->assertEmpty($results);
     }
+
+    // ── monthlyByCountry ───────────────────────────────────────────────────────
+
+    public function testMonthlyByCountryReturnsOneEntryPerCountryPerMonth(): void
+    {
+        $results = $this->repository->monthlyByCountry('2024-01', '2024-03', [$this->prefix . '_FR_001', $this->prefix . '_ES_001']);
+        // Country-filtered by site code doesn't work (it's by country code) — use country codes instead
+        $results = $this->repository->monthlyByCountry('2024-01', '2024-03', null);
+
+        $keyed = [];
+        foreach ($results as $row) {
+            $keyed[$row['country_code'] . '_' . $row['month_year']] = (float) $row['total_kg'];
+        }
+
+        // FR Jan: 100 (R404A), FR Feb: 50 (R404A), FR Mar: 75 (R410A), ES Jan: 60
+        $this->assertGreaterThanOrEqual(100.0, $keyed['FR_2024-01'] ?? 0.0);
+        $this->assertGreaterThanOrEqual(50.0, $keyed['FR_2024-02'] ?? 0.0);
+        $this->assertGreaterThanOrEqual(60.0, $keyed['ES_2024-01'] ?? 0.0);
+    }
+
+    public function testMonthlyByCountryExcludesOutOfRange(): void
+    {
+        $results = $this->repository->monthlyByCountry('2024-01', '2024-03', null);
+        $months = array_unique(array_column($results, 'month_year'));
+
+        $this->assertNotContains('2024-04', $months);
+    }
+
+    // ── sumByFluidType ─────────────────────────────────────────────────────────
+
+    public function testSumByFluidTypeAggregatesPerType(): void
+    {
+        $results = $this->repository->sumByFluidType('2024-01', '2024-03');
+        $totals = array_column($results, 'total_kg', 'fluid_type');
+
+        // R404A: FR(100+50) + ES(60) = at least 210 kg
+        $this->assertArrayHasKey('R404A', $totals);
+        $this->assertGreaterThanOrEqual(210.0, (float) $totals['R404A']);
+
+        // R410A: FR(75) = at least 75 kg
+        $this->assertArrayHasKey('R410A', $totals);
+        $this->assertGreaterThanOrEqual(75.0, (float) $totals['R410A']);
+    }
+
+    public function testSumByFluidTypeOrderedByTotalDesc(): void
+    {
+        $results = $this->repository->sumByFluidType('2024-01', '2024-03');
+
+        // Verify descending order (largest total first)
+        $totals = array_column($results, 'total_kg');
+        for ($i = 1; $i < count($totals); $i++) {
+            $this->assertGreaterThanOrEqual((float) $totals[$i], (float) $totals[$i - 1]);
+        }
+    }
+
+    public function testSumByFluidTypeExcludesOutOfRangeMonths(): void
+    {
+        $resultsQ1 = $this->repository->sumByFluidType('2024-01', '2024-03');
+        $totalQ1 = (float) (array_column($resultsQ1, 'total_kg', 'fluid_type')['R404A'] ?? 0);
+
+        $resultsQ1Q2 = $this->repository->sumByFluidType('2024-01', '2024-04');
+        $totalQ1Q2 = (float) (array_column($resultsQ1Q2, 'total_kg', 'fluid_type')['R404A'] ?? 0);
+
+        // April adds 200 kg of R404A → Q1+Q2 must be strictly greater
+        $this->assertGreaterThan($totalQ1, $totalQ1Q2);
+    }
 }

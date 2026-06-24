@@ -72,6 +72,33 @@ class SiteAreaRepository extends ServiceEntityRepository
     }
 
     /**
+     * Average total area (building area) per site using the latest available fiscal year ≤ requested year.
+     *
+     * @param list<string>|null $countryCodes
+     * @return array<array{site_unique_code: string, avg_total_area: float}>
+     */
+    public function avgTotalAreaBySiteAndYear(int $fiscalYear, ?array $countryCodes = null): array
+    {
+        $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
+            . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.totalAreaM2 IS NOT NULL';
+
+        $qb = $this->createQueryBuilder('sa')
+            ->select('s.siteUniqueCode AS site_unique_code', 'AVG(sa.totalAreaM2) AS avg_total_area')
+            ->join('sa.site', 's')
+            ->where('sa.fiscalYear = (' . $subDql . ')')
+            ->andWhere('sa.totalAreaM2 IS NOT NULL')
+            ->setParameter('year', $fiscalYear)
+            ->groupBy('s.siteUniqueCode');
+
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
+        }
+
+        return $qb->getQuery()->getArrayResult();
+    }
+
+    /**
      * Average sales area per site using the latest available fiscal year ≤ the requested year.
      *
      * Falls back to the most recent year with data when the requested year has no records yet

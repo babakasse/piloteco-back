@@ -6,13 +6,13 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\ApiResource\KpiSiteRankingResource;
+use App\ApiResource\KpiCountryIntensityMonthlyResource;
 use App\Service\EnergyKpiCalculatorService;
 
 /**
- * @implements ProviderInterface<KpiSiteRankingResource>
+ * @implements ProviderInterface<KpiCountryIntensityMonthlyResource>
  */
-final readonly class KpiSiteRankingProvider implements ProviderInterface
+final readonly class KpiCountryIntensityMonthlyProvider implements ProviderInterface
 {
     use KpiFilterResolverTrait;
 
@@ -25,19 +25,11 @@ final readonly class KpiSiteRankingProvider implements ProviderInterface
         $filters = $context['filters'] ?? [];
 
         $resourceCategory = strtoupper((string) ($filters['resourceCategory'] ?? 'ELEC'));
-        $month = (string) ($filters['month'] ?? date('Y-m'));
-        $order = strtoupper((string) ($filters['order'] ?? 'DESC'));
-        $limit = min((int) ($filters['limit'] ?? 10), 50);
+        $year = (int) ($filters['year'] ?? date('Y'));
 
-        $year = (int) substr($month, 0, 4);
-        $monthFrom = sprintf('%d-01', $year);
-
-        $rankings = $this->kpiCalculatorService->computeSiteRanking(
+        $rows = $this->kpiCalculatorService->computeCountryIntensityMonthly(
             resourceCategory: $resourceCategory,
-            monthFrom: $monthFrom,
-            monthTo: $month,
-            limit: $limit,
-            order: $order,
+            year: $year,
             countryCodes: $this->resolveCountryCodes($filters),
             resourceCategories: $this->resolveResourceCategories($filters),
             resourceSubCategory: $this->resolveResourceSubCategory($filters),
@@ -45,14 +37,14 @@ final readonly class KpiSiteRankingProvider implements ProviderInterface
             realDataOnly: $this->resolveRealDataOnly($filters),
         );
 
-        return array_map(static function (array $row): KpiSiteRankingResource {
-            $resource = new KpiSiteRankingResource();
-            $resource->rank = $row['rank'];
-            $resource->siteUniqueCode = $row['site_unique_code'];
+        return array_map(static function (array $row): KpiCountryIntensityMonthlyResource {
+            $resource = new KpiCountryIntensityMonthlyResource();
+            $resource->id = $row['month'] . '_' . $row['country_code'];
+            $resource->month = $row['month'];
             $resource->countryCode = $row['country_code'];
             $resource->intensity = $row['intensity'];
-            $resource->evolutionPercent = $row['evolution_percent'];
+            $resource->totalKwh = $row['total_kwh'];
             return $resource;
-        }, $rankings);
+        }, $rows);
     }
 }
