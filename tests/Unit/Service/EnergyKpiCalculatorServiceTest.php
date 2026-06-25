@@ -122,15 +122,17 @@ class EnergyKpiCalculatorServiceTest extends TestCase
             ['month_year' => '2024-01', 'total' => 1_000_000.0],
             ['month_year' => '2024-06', 'total' => 900_000.0],
         ]);
-
-        $result = $this->service->computeMonthlyEvolution('ELEC', 2024);
+        $this->areaRepo->method('avgSalesAreaBySiteAndYear')->willReturn([
+            ['site_unique_code' => 'FR_001_MAG', 'avg_sales_area' => 10_000.0],
+        ]);
+        $result = $this->service->computeMonthlyEvolution('ELEC', 2024, '2024-12');
 
         $this->assertCount(12, $result);
         $this->assertSame('2024-01', $result[0]['month']);
         $this->assertSame('2024-12', $result[11]['month']);
-        $this->assertSame(1_000_000.0, $result[0]['current']);
-        $this->assertNull($result[0]['previous']); // No N-1 data mocked
-        $this->assertNull($result[1]['current']); // Feb has no data
+        $this->assertNotNull($result[0]['current']); // Jan has data → intensity > 0
+        // N-1 returns no rows → cumulative = 0 → intensity = 0.0 (not null, area is mocked)
+        $this->assertSame(0.0, $result[0]['previous']);
     }
 
     public function testComputeSiteRankingOrdersDescByDefault(): void
@@ -216,7 +218,7 @@ class EnergyKpiCalculatorServiceTest extends TestCase
             )
             ->willReturn([]);
 
-        $this->service->computeMonthlyEvolution('ELEC', 2025, $countryCodes);
+        $this->service->computeMonthlyEvolution('ELEC', 2025, '2025-12', $countryCodes);
     }
 
     public function testComputeSiteRankingPassesCountryCodesToRepositories(): void

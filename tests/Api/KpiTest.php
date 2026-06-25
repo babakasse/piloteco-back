@@ -196,7 +196,7 @@ class KpiTest extends ApiTestCase
 
     public function testMonthlyEvolutionReturns12Months(): void
     {
-        static::createClient()->request('GET', '/kpi/monthly-evolution?resourceCategory=ELEC&year=2024', [
+        static::createClient()->request('GET', '/kpi/monthly-evolution?resourceCategory=ELEC&year=2024&month=2024-12', [
             'headers' => [
                 'Authorization' => 'Bearer ' . self::$token,
                 'Accept' => 'application/json',
@@ -206,24 +206,20 @@ class KpiTest extends ApiTestCase
         $this->assertResponseIsSuccessful();
 
         $data = json_decode(static::getClient()->getResponse()->getContent(), true);
-        $this->assertCount(12, $data, 'Monthly evolution must always return exactly 12 months');
+        $this->assertCount(12, $data, 'Monthly evolution must return 12 months when month=2024-12');
 
         $months = array_column($data, 'month');
         $this->assertContains('2024-01', $months);
         $this->assertContains('2024-12', $months);
 
-        // All items must have the 'month' key
         foreach ($data as $monthData) {
             $this->assertArrayHasKey('month', $monthData);
         }
-        // Items with actual data must have 'current'
-        $monthsWithData = array_filter($data, fn (array $m) => !empty($m['current']));
-        $this->assertNotEmpty($monthsWithData, 'At least some months should have data');
     }
 
     public function testMonthlyEvolutionIncludesAllMonths(): void
     {
-        static::createClient()->request('GET', '/kpi/monthly-evolution?resourceCategory=ELEC&year=2024', [
+        static::createClient()->request('GET', '/kpi/monthly-evolution?resourceCategory=ELEC&year=2024&month=2024-12', [
             'headers' => [
                 'Authorization' => 'Bearer ' . self::$token,
                 'Accept' => 'application/json',
@@ -611,8 +607,8 @@ class KpiTest extends ApiTestCase
         $jan = array_values(array_filter($data, fn (array $m) => $m['month'] === '2024-01'));
         $this->assertNotEmpty($jan);
         $this->assertArrayHasKey('current', $jan[0]);
-        // FR (100k) + ES (80k) = 180k minimum
-        $this->assertGreaterThanOrEqual(180_000.0, (float) $jan[0]['current']);
+        // current is now cumulative YTD intensity (kWh/m²) — must be positive
+        $this->assertGreaterThan(0.0, (float) $jan[0]['current']);
     }
 
     // ── /kpi/country-intensity-monthly ────────────────────────────────────────

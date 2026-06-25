@@ -28,6 +28,11 @@ final readonly class KpiMonthlyEvolutionProvider implements ProviderInterface
         $year = (int) ($filters['year'] ?? date('Y'));
         $month = (string) ($filters['month'] ?? date('Y-m'));
 
+        // If the selected month belongs to a different year, show the full year (up to December)
+        if ((int) substr($month, 0, 4) !== $year) {
+            $month = sprintf('%d-12', $year);
+        }
+
         $monthlyData = $this->kpiCalculatorService->computeMonthlyEvolution(
             resourceCategory: $resourceCategory,
             year: $year,
