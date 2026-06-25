@@ -26,10 +26,12 @@ final readonly class KpiMonthlyEvolutionProvider implements ProviderInterface
 
         $resourceCategory = strtoupper((string) ($filters['resourceCategory'] ?? 'ELEC'));
         $year = (int) ($filters['year'] ?? date('Y'));
+        $month = (string) ($filters['month'] ?? date('Y-m'));
 
         $monthlyData = $this->kpiCalculatorService->computeMonthlyEvolution(
             resourceCategory: $resourceCategory,
             year: $year,
+            currentMonth: $month,
             countryCodes: $this->resolveCountryCodes($filters),
             resourceCategories: $this->resolveResourceCategories($filters),
             resourceSubCategory: $this->resolveResourceSubCategory($filters),
@@ -42,6 +44,7 @@ final readonly class KpiMonthlyEvolutionProvider implements ProviderInterface
             $resource->month = $row['month'];
             $resource->current = $row['current'];
             $resource->previous = $row['previous'];
+            $resource->evolutionPercent = $row['evolutionPercent'];
             return $resource;
         }, $monthlyData);
     }

@@ -32,4 +32,7 @@ final class KpiMonthlyEvolutionResource
 
     #[Groups(['kpi:read'])]
     public ?float $previous = null;
+
+    #[Groups(['kpi:read'])]
+    public ?float $evolutionPercent = null;
 }

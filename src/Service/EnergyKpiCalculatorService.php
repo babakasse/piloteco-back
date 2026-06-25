@@ -111,11 +111,15 @@ final readonly class EnergyKpiCalculatorService
 
         $refrigerantYtd = $this->sumRefrigerant($ytdStart, $currentMonth, $countryCodes, $onlyComparable);
 
-        // Green electricity metrics — only meaningful for ELEC (single resource, no sub-category filter)
+        // Green electricity metrics — ELEC only; skip for GAS, WATER or multi-resource queries
+        $isElecOnly = $resourceCategory === 'ELEC'
+            && ($resourceCategories === null || $resourceCategories === ['ELEC']);
         [$greenConsumptionKwh, $greenConsumptionPct, $greenProductionKwh, $greenProductionPct]
-            = $this->computeGreenElectricityMetrics(
+            = $isElecOnly
+            ? $this->computeGreenElectricityMetrics(
                 $ytdStart, $currentMonth, $countryCodes, $onlyComparable, $ytdConsumption,
-            );
+              )
+            : [null, null, null, null];
 
         return [
             'energy_intensity_mtd' => $intensityMtd,
@@ -146,16 +150,18 @@ final readonly class EnergyKpiCalculatorService
     public function computeMonthlyEvolution(
         string $resourceCategory,
         int $year,
+        string $currentMonth,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
         ?string $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
+        $currentMonthNum = (int) substr($currentMonth, 5, 2);
         $currentYearStart = sprintf('%d-01', $year);
-        $currentYearEnd = sprintf('%d-12', $year);
+        $currentYearEnd = sprintf('%d-%02d', $year, $currentMonthNum);
         $previousYearStart = sprintf('%d-01', $year - 1);
-        $previousYearEnd = sprintf('%d-12', $year - 1);
+        $previousYearEnd = sprintf('%d-%02d', $year - 1, $currentMonthNum);
 
         $currentRows = $this->energyConsumptionRepository->monthlyTotals(
             $resourceCategory, $currentYearStart, $currentYearEnd, $countryCodes,
@@ -166,17 +172,31 @@ final readonly class EnergyKpiCalculatorService
             null, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
         );
 
+        $salesArea = $this->getTotalSalesArea($year, $countryCodes);
+        $salesAreaN1 = $this->getTotalSalesArea($year - 1, $countryCodes);
+
         $currentByMonth = array_column($currentRows, 'total', 'month_year');
         $previousByMonth = array_column($previousRows, 'total', 'month_year');
 
         $months = [];
-        for ($m = 1; $m <= 12; $m++) {
+        $cumulativeCurrent = 0.0;
+        $cumulativePrevious = 0.0;
+
+        for ($m = 1; $m <= $currentMonthNum; $m++) {
             $currentKey = sprintf('%d-%02d', $year, $m);
             $previousKey = sprintf('%d-%02d', $year - 1, $m);
+
+            $cumulativeCurrent += (float) ($currentByMonth[$currentKey] ?? 0);
+            $cumulativePrevious += (float) ($previousByMonth[$previousKey] ?? 0);
+
+            $intensityCurrent = $this->computeIntensity($cumulativeCurrent, $salesArea);
+            $intensityPrevious = $this->computeIntensity($cumulativePrevious, $salesAreaN1);
+
             $months[] = [
                 'month' => $currentKey,
-                'current' => isset($currentByMonth[$currentKey]) ? (float) $currentByMonth[$currentKey] : null,
-                'previous' => isset($previousByMonth[$previousKey]) ? (float) $previousByMonth[$previousKey] : null,
+                'current' => $intensityCurrent,
+                'previous' => $intensityPrevious,
+                'evolutionPercent' => $this->evolutionPercent($intensityCurrent, $intensityPrevious),
             ];
         }
 
