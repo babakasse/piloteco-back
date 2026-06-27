@@ -59,6 +59,10 @@ class Site
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $siteType = null;
 
+    #[Groups(['site:read'])]
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $siteFormat = null;
+
     #[ORM\OneToMany(mappedBy: 'site', targetEntity: EnergyConsumption::class, cascade: ['remove'])]
     private Collection $energyConsumptions;
 
@@ -121,6 +125,17 @@ class Site
     public function setSiteType(?string $siteType): self
     {
         $this->siteType = $siteType;
+        return $this;
+    }
+
+    public function getSiteFormat(): ?string
+    {
+        return $this->siteFormat;
+    }
+
+    public function setSiteFormat(?string $siteFormat): self
+    {
+        $this->siteFormat = $siteFormat;
         return $this;
     }
 

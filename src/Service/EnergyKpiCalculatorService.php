@@ -204,6 +204,146 @@ final readonly class EnergyKpiCalculatorService
     }
 
     /**
+     * Consumption summary for the Energy Efficiency page.
+     * Always returns two buckets: all-site-type and MAG-only,
+     * broken down by resource (ELEC, GAS NG, GAS HN, WATER CONSUMED, WATER STORED).
+     *
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $siteTypes   filter for the charts (not applied to the two fixed buckets)
+     * @param list<string>|null $siteFormats filter for the charts
+     * @return array{
+     *   all: array{elec_kwh: float|null, gas_ng_kwh: float|null, gas_hn_kwh: float|null, elec_gas_kwh: float|null, water_consumed_m3: float|null, water_stored_m3: float|null},
+     *   mag: array{elec_kwh: float|null, gas_ng_kwh: float|null, gas_hn_kwh: float|null, elec_gas_kwh: float|null, water_consumed_m3: float|null, water_stored_m3: float|null},
+     * }
+     */
+    public function computeEfficiencySummary(
+        string $currentMonth,
+        ?array $countryCodes = null,
+        ?bool $onlyComparable = null,
+        ?bool $realDataOnly = null,
+    ): array {
+        $year = (int) substr($currentMonth, 0, 4);
+        $ytdStart = sprintf('%d-01', $year);
+
+        $bucket = function (?array $siteTypesFilter, string $fromMonth) use ($currentMonth, $countryCodes, $onlyComparable, $realDataOnly): array {
+            $elec = $this->sumConsumption('ELEC', $fromMonth, $currentMonth, $countryCodes, null, null, $onlyComparable, $realDataOnly, $siteTypesFilter);
+            $gasNg = $this->sumConsumption('GAS', $fromMonth, $currentMonth, $countryCodes, null, 'NG', $onlyComparable, $realDataOnly, $siteTypesFilter);
+            $gasHn = $this->sumConsumption('GAS', $fromMonth, $currentMonth, $countryCodes, null, 'HN', $onlyComparable, $realDataOnly, $siteTypesFilter);
+            $waterConsumed = $this->sumConsumption('WATER', $fromMonth, $currentMonth, $countryCodes, null, 'CONSUMED', $onlyComparable, $realDataOnly, $siteTypesFilter);
+            $waterStored = $this->sumConsumption('WATER', $fromMonth, $currentMonth, $countryCodes, null, 'STORED', $onlyComparable, $realDataOnly, $siteTypesFilter);
+
+            $elecGas = ($elec !== null || $gasNg !== null || $gasHn !== null)
+                ? ($elec ?? 0.0) + ($gasNg ?? 0.0) + ($gasHn ?? 0.0)
+                : null;
+
+            return [
+                'elec_kwh' => $elec,
+                'gas_ng_kwh' => $gasNg,
+                'gas_hn_kwh' => $gasHn,
+                'elec_gas_kwh' => $elecGas,
+                'water_consumed_m3' => $waterConsumed,
+                'water_stored_m3' => $waterStored,
+            ];
+        };
+
+        return [
+            'ytd' => [
+                'all' => $bucket(null, $ytdStart),
+                'mag' => $bucket(['MAG'], $ytdStart),
+            ],
+            'mtd' => [
+                'all' => $bucket(null, $currentMonth),
+                'mag' => $bucket(['MAG'], $currentMonth),
+            ],
+        ];
+    }
+
+    /**
+     * Monthly intensity N vs N-1 for the 4 energy efficiency charts.
+     *
+     * @param 'sales'|'total' $surfaceType  which surface area to use
+     * @param 'ytd'|'mtd'     $mode         ytd = cumulative, mtd = monthly only
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     * @return array<array{month: string, current: float|null, previous: float|null, evolutionPercent: float|null}>
+     */
+    public function computeMonthlyIntensity(
+        string $resourceCategory,
+        int $year,
+        string $currentMonth,
+        string $surfaceType = 'sales',
+        string $mode = 'ytd',
+        ?array $countryCodes = null,
+        ?array $resourceCategories = null,
+        ?string $resourceSubCategory = null,
+        ?bool $onlyComparable = null,
+        ?bool $realDataOnly = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): array {
+        $currentMonthNum = (int) substr($currentMonth, 5, 2);
+        $currentYearStart = sprintf('%d-01', $year);
+        $currentYearEnd = sprintf('%d-%02d', $year, $currentMonthNum);
+        $previousYearStart = sprintf('%d-01', $year - 1);
+        $previousYearEnd = sprintf('%d-%02d', $year - 1, $currentMonthNum);
+
+        $currentRows = $this->energyConsumptionRepository->monthlyTotals(
+            $resourceCategory, $currentYearStart, $currentYearEnd, $countryCodes,
+            null, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
+            $siteTypes, $siteFormats,
+        );
+        $previousRows = $this->energyConsumptionRepository->monthlyTotals(
+            $resourceCategory, $previousYearStart, $previousYearEnd, $countryCodes,
+            null, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
+            $siteTypes, $siteFormats,
+        );
+
+        if ($surfaceType === 'total') {
+            $areaCurrent = $this->getTotalBuildingArea($year, $countryCodes, $siteTypes, $siteFormats);
+            $areaPrevious = $this->getTotalBuildingArea($year - 1, $countryCodes, $siteTypes, $siteFormats);
+        } else {
+            $areaCurrent = $this->getTotalSalesArea($year, $countryCodes, $siteTypes, $siteFormats);
+            $areaPrevious = $this->getTotalSalesArea($year - 1, $countryCodes, $siteTypes, $siteFormats);
+        }
+
+        $currentByMonth = array_column($currentRows, 'total', 'month_year');
+        $previousByMonth = array_column($previousRows, 'total', 'month_year');
+
+        $months = [];
+        $cumulativeCurrent = 0.0;
+        $cumulativePrevious = 0.0;
+
+        for ($m = 1; $m <= $currentMonthNum; $m++) {
+            $currentKey = sprintf('%d-%02d', $year, $m);
+            $previousKey = sprintf('%d-%02d', $year - 1, $m);
+
+            $monthCurrent = (float) ($currentByMonth[$currentKey] ?? 0);
+            $monthPrevious = (float) ($previousByMonth[$previousKey] ?? 0);
+
+            if ($mode === 'ytd') {
+                $cumulativeCurrent += $monthCurrent;
+                $cumulativePrevious += $monthPrevious;
+                $intensityCurrent = $this->computeIntensity($cumulativeCurrent, $areaCurrent);
+                $intensityPrevious = $this->computeIntensity($cumulativePrevious, $areaPrevious);
+            } else {
+                $intensityCurrent = $this->computeIntensity($monthCurrent > 0 ? $monthCurrent : null, $areaCurrent);
+                $intensityPrevious = $this->computeIntensity($monthPrevious > 0 ? $monthPrevious : null, $areaPrevious);
+            }
+
+            $months[] = [
+                'month' => $currentKey,
+                'current' => $intensityCurrent,
+                'previous' => $intensityPrevious,
+                'evolutionPercent' => $this->evolutionPercent($intensityCurrent, $intensityPrevious),
+            ];
+        }
+
+        return $months;
+    }
+
+    /**
      * Top/Flop N sites by energy intensity.
      *
      * @param list<string>|null $countryCodes
@@ -501,6 +641,12 @@ final readonly class EnergyKpiCalculatorService
      * @param list<string>|null $countryCodes
      * @param list<string>|null $resourceCategories
      */
+    /**
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     */
     private function sumConsumption(
         string $resourceCategory,
         string $monthFrom,
@@ -510,10 +656,13 @@ final readonly class EnergyKpiCalculatorService
         ?string $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
     ): ?float {
         $rows = $this->energyConsumptionRepository->sumByMonthRangeAndResource(
             $resourceCategory, $monthFrom, $monthTo, $countryCodes,
             $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
+            $siteTypes, $siteFormats,
         );
 
         if (empty($rows)) {
@@ -525,10 +674,16 @@ final readonly class EnergyKpiCalculatorService
 
     /**
      * @param list<string>|null $countryCodes
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
      */
-    private function getTotalSalesArea(int $year, ?array $countryCodes): ?float
-    {
-        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes, onlyMag: true);
+    private function getTotalSalesArea(
+        int $year,
+        ?array $countryCodes,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): ?float {
+        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes, onlyMag: true, siteTypes: $siteTypes, siteFormats: $siteFormats);
 
         if (empty($areas)) {
             return null;
@@ -539,10 +694,16 @@ final readonly class EnergyKpiCalculatorService
 
     /**
      * @param list<string>|null $countryCodes
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
      */
-    private function getTotalBuildingArea(int $year, ?array $countryCodes): ?float
-    {
-        $areas = $this->siteAreaRepository->avgTotalAreaBySiteAndYear($year, $countryCodes);
+    private function getTotalBuildingArea(
+        int $year,
+        ?array $countryCodes,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): ?float {
+        $areas = $this->siteAreaRepository->avgTotalAreaBySiteAndYear($year, $countryCodes, siteTypes: $siteTypes, siteFormats: $siteFormats);
 
         if (empty($areas)) {
             return null;

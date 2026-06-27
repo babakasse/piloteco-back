@@ -42,4 +42,30 @@ class SiteRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleColumnResult();
     }
+
+    /**
+     * @return string[]
+     */
+    public function findDistinctSiteTypes(): array
+    {
+        return $this->createQueryBuilder('s')
+            ->select('DISTINCT s.siteType')
+            ->where('s.siteType IS NOT NULL')
+            ->orderBy('s.siteType', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    /**
+     * @return string[]
+     */
+    public function findDistinctSiteFormats(): array
+    {
+        return $this->createQueryBuilder('s')
+            ->select('DISTINCT s.siteFormat')
+            ->where('s.siteFormat IS NOT NULL')
+            ->orderBy('s.siteFormat', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
 }

@@ -74,4 +74,34 @@ trait KpiFilterResolverTrait
     {
         return ($filters['dataSource'] ?? 'total') === 'real' ? true : null;
     }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return list<string>|null
+     */
+    private function resolveSiteTypes(array $filters): ?array
+    {
+        $raw = $filters['siteTypes'] ?? null;
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+        $types = is_array($raw) ? array_values($raw) : [$raw];
+        $types = array_filter(array_map('strtoupper', $types));
+        return $types !== [] ? array_values($types) : null;
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return list<string>|null
+     */
+    private function resolveSiteFormats(array $filters): ?array
+    {
+        $raw = $filters['siteFormats'] ?? null;
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+        $formats = is_array($raw) ? array_values($raw) : [$raw];
+        $formats = array_filter($formats);
+        return $formats !== [] ? array_values($formats) : null;
+    }
 }

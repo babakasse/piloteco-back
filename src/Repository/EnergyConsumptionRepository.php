@@ -23,6 +23,25 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
     // ── Private helpers ────────────────────────────────────────────────────────
 
     /**
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     */
+    private function applySiteFilters(
+        QueryBuilder $qb,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): void {
+        if ($siteTypes !== null && $siteTypes !== []) {
+            $qb->andWhere('s.siteType IN (:siteTypes)')
+               ->setParameter('siteTypes', $siteTypes);
+        }
+        if ($siteFormats !== null && $siteFormats !== []) {
+            $qb->andWhere('s.siteFormat IN (:siteFormats)')
+               ->setParameter('siteFormats', $siteFormats);
+        }
+    }
+
+    /**
      * Apply resource category, sub-category, comparable and data-source filters.
      *
      * @param list<string>|null $resourceCategories  when set, overrides $resourceCategory with IN clause
@@ -67,6 +86,13 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
      * @param list<string>|null $resourceCategories  multi-resource override
      * @return array<array{site_unique_code: string, country_code: string, total: float}>
      */
+    /**
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories  multi-resource override
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     * @return array<array{site_unique_code: string, country_code: string, total: float}>
+     */
     public function sumByMonthRangeAndResource(
         string $resourceCategory,
         string $monthFrom,
@@ -76,6 +102,8 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         ?string $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
             ->select(
@@ -91,6 +119,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->groupBy('s.siteUniqueCode', 's.countryCode');
 
         $this->applyEnergyFilters($qb, $resourceCategory, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly);
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
 
         if ($countryCodes !== null && $countryCodes !== []) {
             $qb->andWhere('s.countryCode IN (:countryCodes)')
@@ -107,6 +136,13 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
      * @param list<string>|null $resourceCategories
      * @return array<array{month_year: string, total: float}>
      */
+    /**
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     * @return array<array{month_year: string, total: float}>
+     */
     public function monthlyTotals(
         string $resourceCategory,
         string $yearStart,
@@ -117,6 +153,8 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         ?string $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
             ->select('ec.monthYear AS month_year', 'SUM(ec.totalSurfaceQuantityConsumed) AS total')
@@ -129,6 +167,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->orderBy('ec.monthYear', 'ASC');
 
         $this->applyEnergyFilters($qb, $resourceCategory, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly);
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
 
         if ($countryCodes !== null && $countryCodes !== []) {
             $qb->andWhere('s.countryCode IN (:countryCodes)')
@@ -150,6 +189,13 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
      * @param list<string>|null $resourceCategories
      * @return array<array{country_code: string, total: float}>
      */
+    /**
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     * @return array<array{country_code: string, total: float}>
+     */
     public function sumByCountryAndMonthRange(
         string $resourceCategory,
         string $monthFrom,
@@ -159,6 +205,8 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         ?string $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
             ->select('s.countryCode AS country_code', 'SUM(ec.totalSurfaceQuantityConsumed) AS total')
@@ -171,6 +219,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->orderBy('s.countryCode', 'ASC');
 
         $this->applyEnergyFilters($qb, $resourceCategory, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly);
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
 
         if ($countryCodes !== null && $countryCodes !== []) {
             $qb->andWhere('s.countryCode IN (:countryCodes)')
@@ -187,6 +236,13 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
      * @param list<string>|null $resourceCategories
      * @return array<array{country_code: string, month_year: string, total: float}>
      */
+    /**
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
+     * @return array<array{country_code: string, month_year: string, total: float}>
+     */
     public function monthlyTotalsByCountry(
         string $resourceCategory,
         string $yearStart,
@@ -196,6 +252,8 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         ?string $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
             ->select(
@@ -213,6 +271,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->addOrderBy('s.countryCode', 'ASC');
 
         $this->applyEnergyFilters($qb, $resourceCategory, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly);
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
 
         if ($countryCodes !== null && $countryCodes !== []) {
             $qb->andWhere('s.countryCode IN (:countryCodes)')

@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\Site;
 use App\Entity\SiteArea;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -19,14 +20,36 @@ class SiteAreaRepository extends ServiceEntityRepository
         parent::__construct($registry, SiteArea::class);
     }
 
+    private function applySiteFilters(
+        QueryBuilder $qb,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): void {
+        if ($siteTypes !== null && $siteTypes !== []) {
+            $qb->andWhere('s.siteType IN (:siteTypes)')
+               ->setParameter('siteTypes', $siteTypes);
+        }
+        if ($siteFormats !== null && $siteFormats !== []) {
+            $qb->andWhere('s.siteFormat IN (:siteFormats)')
+               ->setParameter('siteFormats', $siteFormats);
+        }
+    }
+
     /**
      * Total sales area aggregated by country using the latest available fiscal year ≤ requested year.
      *
      * @param list<string>|null $countryCodes
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
      * @return array<array{country_code: string, total_sales_area: float}>
      */
-    public function totalSalesAreaByCountryAndYear(int $fiscalYear, ?array $countryCodes = null, bool $onlyMag = false): array
-    {
+    public function totalSalesAreaByCountryAndYear(
+        int $fiscalYear,
+        ?array $countryCodes = null,
+        bool $onlyMag = false,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): array {
         $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
             . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.salesAreaM2 IS NOT NULL';
 
@@ -44,8 +67,10 @@ class SiteAreaRepository extends ServiceEntityRepository
         }
 
         if ($onlyMag) {
-            $qb->andWhere("s.siteUniqueCode LIKE '%\_MAG' ESCAPE '\\'");
+            $qb->andWhere("s.siteUniqueCode LIKE '%_MAG'");
         }
+
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
 
         return $qb->getQuery()->getArrayResult();
     }
@@ -79,10 +104,16 @@ class SiteAreaRepository extends ServiceEntityRepository
      * Average total area (building area) per site using the latest available fiscal year ≤ requested year.
      *
      * @param list<string>|null $countryCodes
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
      * @return array<array{site_unique_code: string, avg_total_area: float}>
      */
-    public function avgTotalAreaBySiteAndYear(int $fiscalYear, ?array $countryCodes = null): array
-    {
+    public function avgTotalAreaBySiteAndYear(
+        int $fiscalYear,
+        ?array $countryCodes = null,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): array {
         $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
             . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.totalAreaM2 IS NOT NULL';
 
@@ -99,21 +130,26 @@ class SiteAreaRepository extends ServiceEntityRepository
                ->setParameter('countryCodes', $countryCodes);
         }
 
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
+
         return $qb->getQuery()->getArrayResult();
     }
 
     /**
      * Average sales area per site using the latest available fiscal year ≤ the requested year.
      *
-     * Falls back to the most recent year with data when the requested year has no records yet
-     * (e.g. 2025 intensity requests use 2024 area data if 2025 hasn't been imported).
-     *
      * @param list<string>|null $countryCodes
+     * @param list<string>|null $siteTypes
+     * @param list<string>|null $siteFormats
      * @return array<array{site_unique_code: string, avg_sales_area: float}>
      */
-    public function avgSalesAreaBySiteAndYear(int $fiscalYear, ?array $countryCodes = null, bool $onlyMag = false): array
-    {
-        // Sub-query: resolve the latest fiscal year ≤ requested year per site
+    public function avgSalesAreaBySiteAndYear(
+        int $fiscalYear,
+        ?array $countryCodes = null,
+        bool $onlyMag = false,
+        ?array $siteTypes = null,
+        ?array $siteFormats = null,
+    ): array {
         $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
             . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.salesAreaM2 IS NOT NULL';
 
@@ -131,8 +167,10 @@ class SiteAreaRepository extends ServiceEntityRepository
         }
 
         if ($onlyMag) {
-            $qb->andWhere("s.siteUniqueCode LIKE '%\_MAG' ESCAPE '\\'");
+            $qb->andWhere("s.siteUniqueCode LIKE '%_MAG'");
         }
+
+        $this->applySiteFilters($qb, $siteTypes, $siteFormats);
 
         return $qb->getQuery()->getArrayResult();
     }
