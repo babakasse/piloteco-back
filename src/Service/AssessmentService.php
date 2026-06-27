@@ -46,6 +46,11 @@ class AssessmentService
         return null;
     }
 
+    public function findAssessmentById(int $id): ?CarbonAssessment
+    {
+        return $this->assessmentRepository->find($id);
+    }
+
     /**
      * Crée un nouveau bilan carbone pour une entreprise
      */

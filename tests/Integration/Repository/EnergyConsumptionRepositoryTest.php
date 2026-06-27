@@ -290,6 +290,68 @@ class EnergyConsumptionRepositoryTest extends KernelTestCase
         $this->assertNotContains('ES', $countries);
     }
 
+    // ── findMagSiteCodesWithConsumption ───────────────────────────────────────
+
+    public function testFindMagSiteCodesWithConsumptionReturnsMagSitesOnly(): void
+    {
+        // Create a MAG site and a non-MAG site, both with ELEC consumption
+        $magSite = $this->createSite("{$this->prefix}_FR_MAG", 'FR');
+        $magSite->setSiteType('MAG');
+        $driveSite = $this->createSite("{$this->prefix}_FR_DRI", 'FR');
+        $driveSite->setSiteType('DRI');
+        $this->createConsumption($magSite, '2025-01', 'ELEC', 200_000.0);
+        $this->createConsumption($driveSite, '2025-01', 'ELEC', 100_000.0);
+        $this->entityManager->flush();
+
+        $codes = $this->repository->findMagSiteCodesWithConsumption('ELEC', '2025-01', '2025-01');
+
+        $this->assertContains("{$this->prefix}_FR_MAG", $codes);
+        $this->assertNotContains("{$this->prefix}_FR_DRI", $codes);
+    }
+
+    public function testFindMagSiteCodesWithConsumptionExcludesZeroConsumption(): void
+    {
+        $magSite = $this->createSite("{$this->prefix}_HU_MAG", 'HU');
+        $magSite->setSiteType('MAG');
+        $this->createConsumption($magSite, '2025-03', 'ELEC', 0.0);
+        $this->entityManager->flush();
+
+        $codes = $this->repository->findMagSiteCodesWithConsumption('ELEC', '2025-01', '2025-03');
+
+        $this->assertNotContains("{$this->prefix}_HU_MAG", $codes);
+    }
+
+    public function testFindMagSiteCodesWithConsumptionFiltersResource(): void
+    {
+        $magSite = $this->createSite("{$this->prefix}_ES_MAG", 'ES');
+        $magSite->setSiteType('MAG');
+        $this->createConsumption($magSite, '2025-01', 'GAS', 50_000.0);
+        // No ELEC consumption for this site
+        $this->entityManager->flush();
+
+        $elecCodes = $this->repository->findMagSiteCodesWithConsumption('ELEC', '2025-01', '2025-01');
+        $gasCodes = $this->repository->findMagSiteCodesWithConsumption('GAS', '2025-01', '2025-01');
+
+        $this->assertNotContains("{$this->prefix}_ES_MAG", $elecCodes);
+        $this->assertContains("{$this->prefix}_ES_MAG", $gasCodes);
+    }
+
+    public function testFindMagSiteCodesWithConsumptionFiltersCountryCodes(): void
+    {
+        $magFr = $this->createSite("{$this->prefix}_FR2_MAG", 'FR');
+        $magFr->setSiteType('MAG');
+        $magPl = $this->createSite("{$this->prefix}_PL_MAG", 'PL');
+        $magPl->setSiteType('MAG');
+        $this->createConsumption($magFr, '2025-06', 'ELEC', 80_000.0);
+        $this->createConsumption($magPl, '2025-06', 'ELEC', 60_000.0);
+        $this->entityManager->flush();
+
+        $codes = $this->repository->findMagSiteCodesWithConsumption('ELEC', '2025-06', '2025-06', ['FR']);
+
+        $this->assertContains("{$this->prefix}_FR2_MAG", $codes);
+        $this->assertNotContains("{$this->prefix}_PL_MAG", $codes);
+    }
+
     // ── comparable + realDataOnly filters ────────────────────────────────────
 
     public function testComparableFilterReturnsSitesWithIsComparableTrue(): void

@@ -326,6 +326,45 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         return $result !== null ? (float) $result : 0.0;
     }
 
+    /**
+     * Returns unique site codes of MAG sites that have at least one non-null
+     * consumption record for the given resource and month range.
+     *
+     * @param list<string>|null $countryCodes
+     * @param list<string>|null $resourceCategories
+     * @return list<string>
+     */
+    public function findMagSiteCodesWithConsumption(
+        string $resourceCategory,
+        string $monthFrom,
+        string $monthTo,
+        ?array $countryCodes = null,
+        ?array $resourceCategories = null,
+        ?string $resourceSubCategory = null,
+        ?bool $onlyComparable = null,
+        ?bool $realDataOnly = null,
+    ): array {
+        $qb = $this->createQueryBuilder('ec')
+            ->select('DISTINCT s.siteUniqueCode')
+            ->join('ec.site', 's')
+            ->andWhere("s.siteUniqueCode LIKE '%_MAG'")
+            ->andWhere('ec.monthYear >= :monthFrom')
+            ->andWhere('ec.monthYear <= :monthTo')
+            ->andWhere('ec.totalSurfaceQuantityConsumed IS NOT NULL')
+            ->andWhere('ec.totalSurfaceQuantityConsumed > 0')
+            ->setParameter('monthFrom', $monthFrom)
+            ->setParameter('monthTo', $monthTo);
+
+        $this->applyEnergyFilters($qb, $resourceCategory, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly);
+
+        if ($countryCodes !== null && $countryCodes !== []) {
+            $qb->andWhere('s.countryCode IN (:countryCodes)')
+               ->setParameter('countryCodes', $countryCodes);
+        }
+
+        return array_column($qb->getQuery()->getArrayResult(), 'siteUniqueCode');
+    }
+
     public function findBySiteMonthAndResource(
         Site $site,
         string $monthYear,

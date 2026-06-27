@@ -257,6 +257,118 @@ class EnergyKpiCalculatorServiceTest extends TestCase
         $this->service->computeSummary('ELEC', '2025-01', null);
     }
 
+    // ── computeSummary — green metrics always computed ─────────────────────────
+
+    public function testComputeSummaryAlwaysReturnsGreenMetricsForGasResource(): void
+    {
+        // When resource = GAS, green metrics should still be fetched from ELEC data
+        $this->energyRepo->method('sumByMonthRangeAndResource')->willReturnCallback(
+            function (string $resource): array {
+                // Return consumption for both GAS and ELEC calls
+                return [['site_unique_code' => 'FR_001_MAG', 'country_code' => 'FR', 'total' => 500_000.0]];
+            }
+        );
+        $this->areaRepo->method('avgSalesAreaBySiteAndYear')->willReturn([
+            ['site_unique_code' => 'FR_001_MAG', 'avg_sales_area' => 5_000.0],
+        ]);
+        $this->refrigerantRepo->method('sumByMonthRange')->willReturn([]);
+        $this->energyRepo->method('sumByMonthRangeAndSubCategories')->willReturn(200_000.0);
+
+        $result = $this->service->computeSummary('GAS', '2025-06');
+
+        // Green values should not be null even though resource is GAS
+        $this->assertNotNull($result['green_electricity_consumption_kwh']);
+        $this->assertNotNull($result['green_electricity_consumption_percent']);
+    }
+
+    public function testComputeSummaryAlwaysReturnsGreenMetricsForWaterResource(): void
+    {
+        $this->energyRepo->method('sumByMonthRangeAndResource')->willReturn(
+            [['site_unique_code' => 'FR_001_MAG', 'country_code' => 'FR', 'total' => 300_000.0]]
+        );
+        $this->areaRepo->method('avgSalesAreaBySiteAndYear')->willReturn([
+            ['site_unique_code' => 'FR_001_MAG', 'avg_sales_area' => 5_000.0],
+        ]);
+        $this->refrigerantRepo->method('sumByMonthRange')->willReturn([]);
+        $this->energyRepo->method('sumByMonthRangeAndSubCategories')->willReturn(150_000.0);
+
+        $result = $this->service->computeSummary('WATER', '2025-06');
+
+        $this->assertNotNull($result['green_electricity_consumption_kwh']);
+    }
+
+    // ── computeSummary — sales surface filtered to MAG with consumption ────────
+
+    public function testComputeSummarySalesSurfaceUsesOnlyMagSitesWithConsumption(): void
+    {
+        $this->energyRepo->method('findMagSiteCodesWithConsumption')
+            ->willReturn(['FR_001_MAG']); // Only one MAG site has consumption
+
+        $this->energyRepo->method('sumByMonthRangeAndResource')->willReturn(
+            [['site_unique_code' => 'FR_001_MAG', 'country_code' => 'FR', 'total' => 500_000.0]]
+        );
+
+        // avgSalesAreaBySiteAndYear should be called with the siteUniqueCodes from findMagSiteCodesWithConsumption
+        $this->areaRepo->expects($this->atLeastOnce())
+            ->method('avgSalesAreaBySiteAndYear')
+            ->with(
+                $this->anything(), // year
+                $this->anything(), // countryCodes
+                $this->anything(), // onlyMag
+                $this->anything(), // siteTypes
+                $this->anything(), // siteFormats
+                ['FR_001_MAG'],    // siteUniqueCodes filtered
+            )
+            ->willReturn([['site_unique_code' => 'FR_001_MAG', 'avg_sales_area' => 5_000.0]]);
+
+        $this->refrigerantRepo->method('sumByMonthRange')->willReturn([]);
+
+        $result = $this->service->computeSummary('ELEC', '2025-06');
+
+        $this->assertSame(5_000.0, $result['sales_surface_m2']);
+    }
+
+    // ── computeEfficiencySummary — YTD + MTD structure ─────────────────────────
+
+    public function testComputeEfficiencySummaryReturnsYtdAndMtdKeys(): void
+    {
+        $this->energyRepo->method('sumByMonthRangeAndResource')->willReturn(
+            [['site_unique_code' => 'FR_001_MAG', 'country_code' => 'FR', 'total' => 100_000.0]]
+        );
+        $this->areaRepo->method('avgSalesAreaBySiteAndYear')->willReturn([]);
+        $this->refrigerantRepo->method('sumByMonthRange')->willReturn([]);
+
+        $result = $this->service->computeEfficiencySummary('2025-06');
+
+        $this->assertArrayHasKey('ytd', $result);
+        $this->assertArrayHasKey('mtd', $result);
+        $this->assertArrayHasKey('all', $result['ytd']);
+        $this->assertArrayHasKey('mag', $result['ytd']);
+        $this->assertArrayHasKey('all', $result['mtd']);
+        $this->assertArrayHasKey('mag', $result['mtd']);
+    }
+
+    public function testComputeEfficiencySummaryYtdCumulatesFromJanuary(): void
+    {
+        $callArgs = [];
+        $this->energyRepo->method('sumByMonthRangeAndResource')
+            ->willReturnCallback(function (string $resource, string $from, string $to) use (&$callArgs): array {
+                $callArgs[] = [$from, $to];
+                return [];
+            });
+        $this->areaRepo->method('avgSalesAreaBySiteAndYear')->willReturn([]);
+
+        $this->service->computeEfficiencySummary('2025-06');
+
+        // YTD calls must start at 2025-01
+        $ytdCalls = array_filter($callArgs, fn($c) => $c[0] === '2025-01' && $c[1] === '2025-06');
+        $this->assertNotEmpty($ytdCalls, 'YTD should call repository from 2025-01 to 2025-06');
+
+        // MTD calls must use the same month for start and end
+        $mtdCalls = array_filter($callArgs, fn($c) => $c[0] === '2025-06' && $c[1] === '2025-06');
+        $this->assertNotEmpty($mtdCalls, 'MTD should call repository for 2025-06 only');
+    }
+
     // ── computeCountryIntensity ────────────────────────────────────────────────
 
     public function testComputeCountryIntensityCalculatesPerCountry(): void

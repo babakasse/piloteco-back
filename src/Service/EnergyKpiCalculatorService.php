@@ -99,8 +99,19 @@ final readonly class EnergyKpiCalculatorService
             $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
         );
 
-        $salesAreaM2 = $this->getTotalSalesArea($year, $countryCodes);
-        $salesAreaM2N1 = $this->getTotalSalesArea($year - 1, $countryCodes);
+        // Sales surface: only MAG sites with non-null consumption for this resource and period
+        $magSitesWithConsumption = $this->energyConsumptionRepository->findMagSiteCodesWithConsumption(
+            $resourceCategory, $ytdStart, $currentMonth, $countryCodes,
+            $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
+        );
+        $magSitesWithConsumptionN1 = $this->energyConsumptionRepository->findMagSiteCodesWithConsumption(
+            $resourceCategory, $previousYtdStart, $this->shiftMonth($currentMonth, -12),
+            $countryCodes, $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
+        );
+
+        // Pass the exact list (even empty) so that sites without consumption yield null area
+        $salesAreaM2 = $this->getTotalSalesArea($year, $countryCodes, siteUniqueCodes: $magSitesWithConsumption);
+        $salesAreaM2N1 = $this->getTotalSalesArea($year - 1, $countryCodes, siteUniqueCodes: $magSitesWithConsumptionN1);
         $totalAreaM2 = $this->getTotalBuildingArea($year, $countryCodes);
 
         $intensityMtd = $this->computeIntensity($mtdConsumption, $salesAreaM2);
@@ -111,15 +122,15 @@ final readonly class EnergyKpiCalculatorService
 
         $refrigerantYtd = $this->sumRefrigerant($ytdStart, $currentMonth, $countryCodes, $onlyComparable);
 
-        // Green electricity metrics — ELEC only; skip for GAS, WATER or multi-resource queries
-        $isElecOnly = $resourceCategory === 'ELEC'
-            && ($resourceCategories === null || $resourceCategories === ['ELEC']);
+        // Green electricity metrics — always computed from ELEC data regardless of selected resource
+        $elecYtdConsumption = $resourceCategory === 'ELEC'
+            && ($resourceCategories === null || $resourceCategories === ['ELEC'])
+            ? $ytdConsumption
+            : $this->sumConsumption('ELEC', $ytdStart, $currentMonth, $countryCodes, null, null, $onlyComparable, $realDataOnly);
         [$greenConsumptionKwh, $greenConsumptionPct, $greenProductionKwh, $greenProductionPct]
-            = $isElecOnly
-            ? $this->computeGreenElectricityMetrics(
-                $ytdStart, $currentMonth, $countryCodes, $onlyComparable, $ytdConsumption,
-              )
-            : [null, null, null, null];
+            = $this->computeGreenElectricityMetrics(
+                $ytdStart, $currentMonth, $countryCodes, $onlyComparable, $elecYtdConsumption,
+              );
 
         return [
             'energy_intensity_mtd' => $intensityMtd,
@@ -682,8 +693,9 @@ final readonly class EnergyKpiCalculatorService
         ?array $countryCodes,
         ?array $siteTypes = null,
         ?array $siteFormats = null,
+        ?array $siteUniqueCodes = null,
     ): ?float {
-        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes, onlyMag: true, siteTypes: $siteTypes, siteFormats: $siteFormats);
+        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes, onlyMag: true, siteTypes: $siteTypes, siteFormats: $siteFormats, siteUniqueCodes: $siteUniqueCodes);
 
         if (empty($areas)) {
             return null;

@@ -23,8 +23,8 @@ class KpiTest extends ApiTestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$frCode = 'KPI_FR_' . strtoupper(substr(uniqid(), -6));
-        self::$esCode = 'KPI_ES_' . strtoupper(substr(uniqid(), -6));
+        self::$frCode = 'KPI_' . strtoupper(substr(uniqid(), -6)) . '_MAG';
+        self::$esCode = 'KPI_' . strtoupper(substr(uniqid(), -6)) . '_MAG';
     }
 
     protected function setUp(): void

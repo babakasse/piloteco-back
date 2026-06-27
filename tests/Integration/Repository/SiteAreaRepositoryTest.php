@@ -205,4 +205,34 @@ class SiteAreaRepositoryTest extends KernelTestCase
         $this->assertArrayHasKey('FR', $totals);
         $this->assertArrayNotHasKey('ES', $totals);
     }
+
+    // ── avgSalesAreaBySiteAndYear with siteUniqueCodes filter ─────────────────
+
+    public function testAvgSalesAreaFiltersBySiteUniqueCodes(): void
+    {
+        // Both sites have areas; filtering to only FR should exclude ES
+        $frCode = "{$this->prefix}_FR_001";
+        $esCode = "{$this->prefix}_ES_001";
+
+        $results = $this->repository->avgSalesAreaBySiteAndYear(2024, null, false, null, null, [$frCode]);
+        $codes = array_column($results, 'site_unique_code');
+
+        $this->assertContains($frCode, $codes);
+        $this->assertNotContains($esCode, $codes);
+    }
+
+    public function testAvgSalesAreaWithEmptySiteUniqueCodesReturnsNothing(): void
+    {
+        $results = $this->repository->avgSalesAreaBySiteAndYear(2024, null, false, null, null, []);
+
+        $this->assertSame([], $results);
+    }
+
+    public function testAvgSalesAreaWithNullSiteUniqueCodesReturnsAll(): void
+    {
+        $results = $this->repository->avgSalesAreaBySiteAndYear(2024, null, false, null, null, null);
+        $codes = array_column($results, 'site_unique_code');
+
+        $this->assertContains("{$this->prefix}_FR_001", $codes);
+    }
 }

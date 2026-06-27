@@ -149,6 +149,7 @@ class SiteAreaRepository extends ServiceEntityRepository
         bool $onlyMag = false,
         ?array $siteTypes = null,
         ?array $siteFormats = null,
+        ?array $siteUniqueCodes = null,
     ): array {
         $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
             . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.salesAreaM2 IS NOT NULL';
@@ -168,6 +169,14 @@ class SiteAreaRepository extends ServiceEntityRepository
 
         if ($onlyMag) {
             $qb->andWhere("s.siteUniqueCode LIKE '%_MAG'");
+        }
+
+        if ($siteUniqueCodes !== null) {
+            if ($siteUniqueCodes === []) {
+                return [];
+            }
+            $qb->andWhere('s.siteUniqueCode IN (:siteUniqueCodes)')
+               ->setParameter('siteUniqueCodes', $siteUniqueCodes);
         }
 
         $this->applySiteFilters($qb, $siteTypes, $siteFormats);
