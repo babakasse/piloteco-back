@@ -301,7 +301,7 @@ final readonly class EnergyKpiCalculatorService
             $resourceCategory, $currentMonth, $currentMonth, $countryCodes,
             $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
         );
-        $areas = $this->siteAreaRepository->totalSalesAreaByCountryAndYear($year, $countryCodes);
+        $areas = $this->siteAreaRepository->totalSalesAreaByCountryAndYear($year, $countryCodes, onlyMag: true);
 
         $consumptionByCountry = array_column($consumptions, 'total', 'country_code');
         $areaByCountry = array_column($areas, 'total_sales_area', 'country_code');
@@ -349,7 +349,7 @@ final readonly class EnergyKpiCalculatorService
             $resourceCategory, $yearStart, $yearEnd, $countryCodes,
             $resourceCategories, $resourceSubCategory, $onlyComparable, $realDataOnly,
         );
-        $areas = $this->siteAreaRepository->totalSalesAreaByCountryAndYear($year, $countryCodes);
+        $areas = $this->siteAreaRepository->totalSalesAreaByCountryAndYear($year, $countryCodes, onlyMag: true);
         $areaByCountry = array_column($areas, 'total_sales_area', 'country_code');
 
         $results = [];
@@ -528,7 +528,7 @@ final readonly class EnergyKpiCalculatorService
      */
     private function getTotalSalesArea(int $year, ?array $countryCodes): ?float
     {
-        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes);
+        $areas = $this->siteAreaRepository->avgSalesAreaBySiteAndYear($year, $countryCodes, onlyMag: true);
 
         if (empty($areas)) {
             return null;

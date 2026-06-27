@@ -25,7 +25,7 @@ class SiteAreaRepository extends ServiceEntityRepository
      * @param list<string>|null $countryCodes
      * @return array<array{country_code: string, total_sales_area: float}>
      */
-    public function totalSalesAreaByCountryAndYear(int $fiscalYear, ?array $countryCodes = null): array
+    public function totalSalesAreaByCountryAndYear(int $fiscalYear, ?array $countryCodes = null, bool $onlyMag = false): array
     {
         $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
             . ' WHERE sa2.site = s AND sa2.fiscalYear <= :year AND sa2.salesAreaM2 IS NOT NULL';
@@ -41,6 +41,10 @@ class SiteAreaRepository extends ServiceEntityRepository
         if ($countryCodes !== null && $countryCodes !== []) {
             $qb->andWhere('s.countryCode IN (:countryCodes)')
                ->setParameter('countryCodes', $countryCodes);
+        }
+
+        if ($onlyMag) {
+            $qb->andWhere("s.siteUniqueCode LIKE '%\_MAG' ESCAPE '\\'");
         }
 
         return $qb->getQuery()->getArrayResult();
@@ -107,7 +111,7 @@ class SiteAreaRepository extends ServiceEntityRepository
      * @param list<string>|null $countryCodes
      * @return array<array{site_unique_code: string, avg_sales_area: float}>
      */
-    public function avgSalesAreaBySiteAndYear(int $fiscalYear, ?array $countryCodes = null): array
+    public function avgSalesAreaBySiteAndYear(int $fiscalYear, ?array $countryCodes = null, bool $onlyMag = false): array
     {
         // Sub-query: resolve the latest fiscal year ≤ requested year per site
         $subDql = 'SELECT MAX(sa2.fiscalYear) FROM App\Entity\SiteArea sa2'
@@ -124,6 +128,10 @@ class SiteAreaRepository extends ServiceEntityRepository
         if ($countryCodes !== null && $countryCodes !== []) {
             $qb->andWhere('s.countryCode IN (:countryCodes)')
                ->setParameter('countryCodes', $countryCodes);
+        }
+
+        if ($onlyMag) {
+            $qb->andWhere("s.siteUniqueCode LIKE '%\_MAG' ESCAPE '\\'");
         }
 
         return $qb->getQuery()->getArrayResult();
