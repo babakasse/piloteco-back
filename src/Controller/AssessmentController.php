@@ -61,14 +61,18 @@ class AssessmentController extends AbstractController
             return $this->json(['error' => 'User does not belong to a company'], Response::HTTP_BAD_REQUEST);
         }
 
-        $assessment = $this->assessmentService->getAssessmentForCompanyById($company, $id);
+        $raw = $this->assessmentService->findAssessmentById($id);
 
-        if (!$assessment) {
+        if (!$raw) {
             return $this->json(['error' => 'Assessment not found or access denied'], Response::HTTP_NOT_FOUND);
         }
 
+        if ($raw->getCompany()->getId() !== $company->getId()) {
+            return $this->json(['error' => 'Access denied to this assessment'], Response::HTTP_FORBIDDEN);
+        }
+
         return $this->json(
-            $assessment,
+            $raw,
             Response::HTTP_OK,
             [],
             ['groups' => 'carbon_assessment:read']

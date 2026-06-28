@@ -27,6 +27,15 @@ services:
         bind:
             $processor: '@api_platform.doctrine.orm.state.persist_processor'
 
-    # Make EmissionCalculationService public for tests
+    # Public services for integration tests
     App\Service\EmissionCalculationService:
+        public: true
+
+    App\Service\Import\EnergyConsumptionImportService:
+        public: true
+
+    App\Service\Import\SiteAreaImportService:
+        public: true
+
+    App\Service\Import\RefrigerantFluidImportService:
         public: true
