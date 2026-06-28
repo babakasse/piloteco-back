@@ -72,7 +72,7 @@ final readonly class EnergyKpiCalculatorService
         string $currentMonth,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
@@ -129,8 +129,15 @@ final readonly class EnergyKpiCalculatorService
             : $this->sumConsumption('ELEC', $ytdStart, $currentMonth, $countryCodes, null, null, $onlyComparable, $realDataOnly);
         [$greenConsumptionKwh, $greenConsumptionPct, $greenProductionKwh, $greenProductionPct]
             = $this->computeGreenElectricityMetrics(
-                $ytdStart, $currentMonth, $countryCodes, $onlyComparable, $elecYtdConsumption,
+                $ytdStart, $currentMonth, $countryCodes, $onlyComparable, $elecYtdConsumption, $realDataOnly,
               );
+
+        // CEI = (ELEC + GAS NG) / sales surface — MAG sites only, GAS HN excluded.
+        // Both numerator (consumption) and denominator (surface) are restricted to stores.
+        $ceiElecYtd = $this->sumConsumption('ELEC', $ytdStart, $currentMonth, $countryCodes, null, null, $onlyComparable, $realDataOnly, ['MAG']);
+        $ceiGasNgYtd = $this->sumConsumption('GAS', $ytdStart, $currentMonth, $countryCodes, null, 'NG', $onlyComparable, $realDataOnly, ['MAG']);
+        $ceiElecGasYtd = ($ceiElecYtd ?? 0.0) + ($ceiGasNgYtd ?? 0.0) ?: null;
+        $commercialEnergyIntensityYtd = $this->computeIntensity($ceiElecGasYtd, $salesAreaM2);
 
         return [
             'energy_intensity_mtd' => $intensityMtd,
@@ -142,7 +149,7 @@ final readonly class EnergyKpiCalculatorService
             'refrigerant_total_ytd_kg' => $refrigerantYtd,
             'sales_surface_m2' => $salesAreaM2,
             'total_surface_m2' => $totalAreaM2,
-            'commercial_energy_intensity_ytd' => $intensityYtd,
+            'commercial_energy_intensity_ytd' => $commercialEnergyIntensityYtd,
             'building_energy_intensity_ytd' => $buildingIntensityYtd,
             'green_electricity_consumption_kwh' => $greenConsumptionKwh,
             'green_electricity_consumption_percent' => $greenConsumptionPct,
@@ -164,7 +171,7 @@ final readonly class EnergyKpiCalculatorService
         string $currentMonth,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
@@ -288,7 +295,7 @@ final readonly class EnergyKpiCalculatorService
         string $mode = 'ytd',
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
         ?array $siteTypes = null,
@@ -369,7 +376,7 @@ final readonly class EnergyKpiCalculatorService
         string $order = 'DESC',
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
@@ -442,7 +449,7 @@ final readonly class EnergyKpiCalculatorService
         string $currentMonth,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
@@ -489,7 +496,7 @@ final readonly class EnergyKpiCalculatorService
         int $year,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
@@ -664,7 +671,7 @@ final readonly class EnergyKpiCalculatorService
         string $monthTo,
         ?array $countryCodes,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
         ?array $siteTypes = null,
@@ -737,6 +744,7 @@ final readonly class EnergyKpiCalculatorService
         ?array $countryCodes,
         ?bool $onlyComparable,
         ?float $totalYtdConsumption,
+        ?bool $realDataOnly = null,
     ): array {
         if ($totalYtdConsumption === null || $totalYtdConsumption <= 0) {
             return [null, null, null, null];
@@ -745,13 +753,13 @@ final readonly class EnergyKpiCalculatorService
         $greenConsumption = $this->energyConsumptionRepository->sumByMonthRangeAndSubCategories(
             $ytdStart, $currentMonth,
             self::GREEN_CONSUMPTION_SUB_CATEGORIES,
-            $countryCodes, $onlyComparable,
+            $countryCodes, $onlyComparable, $realDataOnly,
         );
 
         $greenProduction = $this->energyConsumptionRepository->sumByMonthRangeAndSubCategories(
             $ytdStart, $currentMonth,
             self::GREEN_PRODUCTION_SUB_CATEGORIES,
-            $countryCodes, $onlyComparable,
+            $countryCodes, $onlyComparable, $realDataOnly,
         );
 
         $greenConsumptionPct = round(($greenConsumption / $totalYtdConsumption) * 100, 1);

@@ -23,6 +23,22 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
     // ── Private helpers ────────────────────────────────────────────────────────
 
     /**
+     * Resolve which surface-consumption column to aggregate based on the data-source mode.
+     *
+     * - "Réel" (realDataOnly = true)  → totalSurfaceQuantityConsumed (0 on estimated rows)
+     * - "Total" (default)             → totalSurfaceQuantityEstimated (real + estimated values)
+     *
+     * For real rows both columns are equal; only estimated rows differ
+     * (consumed = 0, estimated = the imputed value).
+     */
+    private function surfaceColumn(?bool $realDataOnly): string
+    {
+        return $realDataOnly === true
+            ? 'ec.totalSurfaceQuantityConsumed'
+            : 'ec.totalSurfaceQuantityEstimated';
+    }
+
+    /**
      * @param list<string>|null $siteTypes
      * @param list<string>|null $siteFormats
      */
@@ -44,13 +60,14 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
     /**
      * Apply resource category, sub-category, comparable and data-source filters.
      *
-     * @param list<string>|null $resourceCategories  when set, overrides $resourceCategory with IN clause
+     * @param list<string>|null $resourceCategories    when set, overrides $resourceCategory with IN clause
+     * @param list<string>|string|null $resourceSubCategory  single value (legacy) or list of values
      */
     private function applyEnergyFilters(
         QueryBuilder $qb,
         string $resourceCategory,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): void {
@@ -63,8 +80,14 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         }
 
         if ($resourceSubCategory !== null) {
-            $qb->andWhere('ec.resourceSubCategory = :subCategory')
-               ->setParameter('subCategory', $resourceSubCategory);
+            $subCats = is_array($resourceSubCategory) ? $resourceSubCategory : [$resourceSubCategory];
+            if (count($subCats) === 1) {
+                $qb->andWhere('ec.resourceSubCategory = :subCategory')
+                   ->setParameter('subCategory', $subCats[0]);
+            } else {
+                $qb->andWhere('ec.resourceSubCategory IN (:subCategories)')
+                   ->setParameter('subCategories', $subCats);
+            }
         }
 
         if ($onlyComparable !== null) {
@@ -72,9 +95,8 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
                ->setParameter('comparable', $onlyComparable);
         }
 
-        if ($realDataOnly === true) {
-            $qb->andWhere('ec.estimatedTotalSurfaceFlag = false');
-        }
+        // Note: the real-vs-total distinction is handled by switching the aggregated
+        // column (see surfaceColumn()), not by filtering on the estimated flag.
     }
 
     // ── Public methods ─────────────────────────────────────────────────────────
@@ -99,7 +121,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         string $monthTo,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
         ?array $siteTypes = null,
@@ -109,7 +131,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->select(
                 's.siteUniqueCode AS site_unique_code',
                 's.countryCode AS country_code',
-                'SUM(ec.totalSurfaceQuantityConsumed) AS total',
+                'SUM(' . $this->surfaceColumn($realDataOnly) . ') AS total',
             )
             ->join('ec.site', 's')
             ->andWhere('ec.monthYear >= :monthFrom')
@@ -150,14 +172,14 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         ?array $countryCodes = null,
         ?string $siteUniqueCode = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
         ?array $siteTypes = null,
         ?array $siteFormats = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
-            ->select('ec.monthYear AS month_year', 'SUM(ec.totalSurfaceQuantityConsumed) AS total')
+            ->select('ec.monthYear AS month_year', 'SUM(' . $this->surfaceColumn($realDataOnly) . ') AS total')
             ->join('ec.site', 's')
             ->andWhere('ec.monthYear >= :yearStart')
             ->andWhere('ec.monthYear <= :yearEnd')
@@ -202,14 +224,14 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         string $monthTo,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
         ?array $siteTypes = null,
         ?array $siteFormats = null,
     ): array {
         $qb = $this->createQueryBuilder('ec')
-            ->select('s.countryCode AS country_code', 'SUM(ec.totalSurfaceQuantityConsumed) AS total')
+            ->select('s.countryCode AS country_code', 'SUM(' . $this->surfaceColumn($realDataOnly) . ') AS total')
             ->join('ec.site', 's')
             ->andWhere('ec.monthYear >= :monthFrom')
             ->andWhere('ec.monthYear <= :monthTo')
@@ -249,7 +271,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         string $yearEnd,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
         ?array $siteTypes = null,
@@ -259,7 +281,7 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
             ->select(
                 's.countryCode AS country_code',
                 'ec.monthYear AS month_year',
-                'SUM(ec.totalSurfaceQuantityConsumed) AS total',
+                'SUM(' . $this->surfaceColumn($realDataOnly) . ') AS total',
             )
             ->join('ec.site', 's')
             ->andWhere('ec.monthYear >= :yearStart')
@@ -294,13 +316,14 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         array $subCategories,
         ?array $countryCodes = null,
         ?bool $onlyComparable = null,
+        ?bool $realDataOnly = null,
     ): float {
         if ($subCategories === []) {
             return 0.0;
         }
 
         $qb = $this->createQueryBuilder('ec')
-            ->select('SUM(ec.totalSurfaceQuantityConsumed) AS total')
+            ->select('SUM(' . $this->surfaceColumn($realDataOnly) . ') AS total')
             ->join('ec.site', 's')
             ->andWhere('ec.resourceCategory = :resource')
             ->andWhere('ec.monthYear >= :monthFrom')
@@ -340,18 +363,19 @@ class EnergyConsumptionRepository extends ServiceEntityRepository
         string $monthTo,
         ?array $countryCodes = null,
         ?array $resourceCategories = null,
-        ?string $resourceSubCategory = null,
+        array|string|null $resourceSubCategory = null,
         ?bool $onlyComparable = null,
         ?bool $realDataOnly = null,
     ): array {
+        $surfaceColumn = $this->surfaceColumn($realDataOnly);
         $qb = $this->createQueryBuilder('ec')
             ->select('DISTINCT s.siteUniqueCode')
             ->join('ec.site', 's')
             ->andWhere("s.siteUniqueCode LIKE '%_MAG'")
             ->andWhere('ec.monthYear >= :monthFrom')
             ->andWhere('ec.monthYear <= :monthTo')
-            ->andWhere('ec.totalSurfaceQuantityConsumed IS NOT NULL')
-            ->andWhere('ec.totalSurfaceQuantityConsumed > 0')
+            ->andWhere($surfaceColumn . ' IS NOT NULL')
+            ->andWhere($surfaceColumn . ' > 0')
             ->setParameter('monthFrom', $monthFrom)
             ->setParameter('monthTo', $monthTo);
 

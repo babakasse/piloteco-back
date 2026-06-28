@@ -105,7 +105,9 @@ class KpiTest extends ApiTestCase
     {
         $c = new EnergyConsumption();
         $c->setSite($site)->setMonthYear($month)->setResourceCategory($resource);
+        // Real data row: consumed and estimated columns hold the same value.
         $c->setTotalSurfaceQuantityConsumed($total);
+        $c->setTotalSurfaceQuantityEstimated($total);
         $this->entityManager->persist($c);
     }
 

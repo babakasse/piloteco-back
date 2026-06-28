@@ -63,7 +63,10 @@ class EnergyConsumptionRepositoryTest extends KernelTestCase
         $consumption->setSite($site);
         $consumption->setMonthYear($monthYear);
         $consumption->setResourceCategory($resource);
+        // Real data row: consumed and estimated columns hold the same value
+        // (estimated rows would instead carry consumed = 0).
         $consumption->setTotalSurfaceQuantityConsumed($total);
+        $consumption->setTotalSurfaceQuantityEstimated($total);
         $this->entityManager->persist($consumption);
     }
 

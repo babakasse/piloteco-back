@@ -40,15 +40,20 @@ trait KpiFilterResolverTrait
     }
 
     /**
+     * Returns one or more sub-categories, or null when no filter is active.
+     *
      * @param array<string, mixed> $filters
+     * @return list<string>|null
      */
-    private function resolveResourceSubCategory(array $filters): ?string
+    private function resolveResourceSubCategories(array $filters): ?array
     {
-        $raw = $filters['resourceSubCategory'] ?? null;
-        if ($raw === null || trim((string) $raw) === '') {
+        $raw = $filters['resourceSubCategories'] ?? $filters['resourceSubCategory'] ?? null;
+        if ($raw === null || $raw === '' || $raw === []) {
             return null;
         }
-        return trim((string) $raw);
+        $values = is_array($raw) ? array_values($raw) : [$raw];
+        $values = array_values(array_filter(array_map('trim', $values)));
+        return $values !== [] ? $values : null;
     }
 
     /**

@@ -40,7 +40,7 @@ final readonly class KpiSiteRankingProvider implements ProviderInterface
             order: $order,
             countryCodes: $this->resolveCountryCodes($filters),
             resourceCategories: $this->resolveResourceCategories($filters),
-            resourceSubCategory: $this->resolveResourceSubCategory($filters),
+            resourceSubCategory: $this->resolveResourceSubCategories($filters),
             onlyComparable: $this->resolveComparable($filters),
             realDataOnly: $this->resolveRealDataOnly($filters),
         );

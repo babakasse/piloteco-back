@@ -32,7 +32,7 @@ final readonly class KpiSummaryProvider implements ProviderInterface
             currentMonth: $month,
             countryCodes: $this->resolveCountryCodes($filters),
             resourceCategories: $this->resolveResourceCategories($filters),
-            resourceSubCategory: $this->resolveResourceSubCategory($filters),
+            resourceSubCategory: $this->resolveResourceSubCategories($filters),
             onlyComparable: $this->resolveComparable($filters),
             realDataOnly: $this->resolveRealDataOnly($filters),
         );

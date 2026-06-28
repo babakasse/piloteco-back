@@ -32,7 +32,7 @@ final readonly class KpiCountryIntensityMonthlyProvider implements ProviderInter
             year: $year,
             countryCodes: $this->resolveCountryCodes($filters),
             resourceCategories: $this->resolveResourceCategories($filters),
-            resourceSubCategory: $this->resolveResourceSubCategory($filters),
+            resourceSubCategory: $this->resolveResourceSubCategories($filters),
             onlyComparable: $this->resolveComparable($filters),
             realDataOnly: $this->resolveRealDataOnly($filters),
         );
